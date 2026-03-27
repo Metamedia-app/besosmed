@@ -13,6 +13,7 @@ async function start() {
     process.exit(1);
   }
 
+  //test remote aja
   // Graceful shutdown
   const shutdown = async (signal) => {
     app.log.info(`${signal} received — shutting down gracefully…`);
