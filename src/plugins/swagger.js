@@ -13,8 +13,8 @@ async function swaggerPlugin(fastify) {
       },
       servers: [
         {
-          url: `http://localhost:${process.env.PORT || 3000}`,
-          description: 'Development server',
+          url: process.env.APP_URL || '/',
+          description: process.env.APP_URL ? 'Production Server' : 'Auto-detected Server',
         },
       ],
       tags: [
