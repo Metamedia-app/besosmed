@@ -18,7 +18,9 @@ async function swaggerPlugin(fastify) {
         },
       ],
       tags: [
-        { name: 'Health', description: 'Health check endpoints' },
+        { name: 'Auth', description: 'Autentikasi — Login & Token' },
+        { name: 'Posts', description: 'Postingan — CRUD, Like, Komentar, Repost, Share' },
+        { name: 'Realtime', description: 'WebSocket — Koneksi real-time' },
       ],
       components: {
         securitySchemes: {

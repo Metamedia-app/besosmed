@@ -3,19 +3,7 @@ async function healthRoutes(fastify) {
     '/health',
     {
       schema: {
-        tags: ['Health'],
-        summary: 'Health check',
-        description: 'Returns server health status, uptime, and current timestamp',
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              status: { type: 'string', example: 'ok' },
-              uptime: { type: 'number', example: 123.45 },
-              timestamp: { type: 'string', format: 'date-time' },
-            },
-          },
-        },
+        hide: true, // tidak tampil di Swagger docs
       },
     },
     async () => {
