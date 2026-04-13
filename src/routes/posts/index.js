@@ -215,6 +215,7 @@ async function postRoutes(fastify) {
 
       const userId = user.id;
       addConnection(userId, socket);
+      fastify.log.info(`[WS] User connected: ${user.nama} (${userId})`);
 
       socket.send(JSON.stringify({
         type: 'connected',
@@ -225,12 +226,27 @@ async function postRoutes(fastify) {
       socket.on('message', (raw) => {
         try {
           const msg = JSON.parse(raw.toString());
-          if (msg.type === 'ping') socket.send(JSON.stringify({ type: 'pong' }));
-        } catch {}
+          if (msg.type === 'ping') {
+            try {
+              socket.send(JSON.stringify({ type: 'pong' }));
+            } catch (err) {
+              fastify.log.error(`[WS] Error sending pong to ${user.nama}: ${err.message}`);
+            }
+          }
+        } catch (err) {
+          fastify.log.error(`[WS] Invalid message from ${user.nama}: ${err.message}`);
+        }
       });
 
-      socket.on('close', () => removeConnection(userId));
-      socket.on('error', () => removeConnection(userId));
+      socket.on('close', () => {
+        fastify.log.info(`[WS] User disconnected: ${user.nama} (${userId})`);
+        removeConnection(userId);
+      });
+
+      socket.on('error', (err) => {
+        fastify.log.error(`[WS] Socket error for ${user.nama}: ${err.message}`);
+        removeConnection(userId);
+      });
     }
   });
 }

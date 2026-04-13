@@ -32,7 +32,12 @@ export function isOnline(userId) {
 export function sendToUser(userId, payload) {
   const ws = connections.get(userId.toString());
   if (ws && ws.readyState === 1) { // 1 = OPEN
-    ws.send(JSON.stringify(payload));
+    try {
+      ws.send(JSON.stringify(payload));
+    } catch (err) {
+      console.error(`[WS] Gagal kirim ke user ${userId}:`, err.message);
+      removeConnection(userId); // Hapus koneksi yang bermasalah
+    }
   }
 }
 
@@ -43,7 +48,12 @@ export function broadcast(payload, excludeUserId = null) {
   connections.forEach((ws, userId) => {
     if (excludeUserId && userId === excludeUserId.toString()) return;
     if (ws.readyState === 1) {
-      ws.send(data);
+      try {
+        ws.send(data);
+      } catch (err) {
+        console.error(`[WS] Gagal broadcast ke user ${userId}:`, err.message);
+        removeConnection(userId);
+      }
     }
   });
 }
