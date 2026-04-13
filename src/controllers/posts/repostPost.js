@@ -1,6 +1,6 @@
 import Post from '../../models/Post.js';
 import Notification from '../../models/Notification.js';
-import { emitRepostUpdate, emitNotification, emitNewPost } from '../../services/wsService.js';
+import { emitRepostUpdate, emitNotification, emitNewPost, emitShareUpdate } from '../../services/wsService.js';
 
 export async function repostPost(request, reply) {
   const userId = request.user.id;
@@ -80,6 +80,9 @@ export async function sharePost(request, reply) {
 
   post.shares_count += 1;
   await post.save();
+
+  // Broadcast update share
+  emitShareUpdate(postId, post.shares_count);
 
   // Link deep link ke postingan (format bisa disesuaikan dengan flutter app)
   const shareUrl = `metamedia://posts/${postId}`;

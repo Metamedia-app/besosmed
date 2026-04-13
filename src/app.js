@@ -7,7 +7,7 @@ import helmetPlugin from './plugins/helmet.js';
 import mongoosePlugin from './plugins/mongoose.js';
 import jwtPlugin from './plugins/jwt.js';
 import rateLimitPlugin from './plugins/rateLimit.js';
-import websocketPlugin from './plugins/websocket.js';
+import socketioPlugin from './plugins/socketio.js';
 import multipartPlugin from './plugins/multipart.js';
 
 // Routes
@@ -35,7 +35,7 @@ export async function buildApp(opts = {}) {
   await app.register(mongoosePlugin);
   await app.register(jwtPlugin);
   await app.register(rateLimitPlugin);
-  await app.register(websocketPlugin);
+  await app.register(socketioPlugin);
   await app.register(multipartPlugin);
 
   // ── Routes ─────────────────────────────────────────────
