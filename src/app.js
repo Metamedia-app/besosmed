@@ -14,6 +14,7 @@ import multipartPlugin from './plugins/multipart.js';
 import healthRoutes from './routes/health.js';
 import authRoutes from './routes/auth/index.js';
 import postRoutes from './routes/posts/index.js';
+import userRoutes from './routes/users/index.js';
 
 export async function buildApp(opts = {}) {
   const app = Fastify({
@@ -41,6 +42,7 @@ export async function buildApp(opts = {}) {
   await app.register(healthRoutes);
   await app.register(authRoutes, { prefix: '/api/v1' });
   await app.register(postRoutes, { prefix: '/api/v1' });
+  await app.register(userRoutes, { prefix: '/api/v1' });
 
   // ── Global Error Handler ───────────────────────────────
   app.setErrorHandler((error, request, reply) => {

@@ -19,6 +19,7 @@ async function swaggerPlugin(fastify) {
       ],
       tags: [
         { name: 'Auth', description: 'Autentikasi — Login & Token' },
+        { name: 'Profile', description: 'Profil — Data diri, Bio, dan Avatar' },
         { name: 'Posts', description: 'Postingan — CRUD, Like, Komentar, Repost, Share' },
         { name: 'Realtime', description: 'WebSocket — Koneksi real-time' },
       ],
