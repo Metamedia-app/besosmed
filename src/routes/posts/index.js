@@ -44,10 +44,13 @@ async function postRoutes(fastify) {
         type: 'object',
         properties: {
           caption: { type: 'string', description: 'Teks postingan' },
-          file: { 
-            type: 'string', 
-            format: 'binary', 
-            description: 'Klik tombol Choose File untuk pilih foto/video' 
+          files: { 
+            type: 'array',
+            items: {
+              type: 'string',
+              format: 'binary'
+            },
+            description: 'Pilih satu atau banyak foto/video sekaligus' 
           }
         }
       },
@@ -71,14 +74,30 @@ async function postRoutes(fastify) {
   // Edit
   fastify.patch('/posts/:id', {
     ...auth,
+    validatorCompiler: () => () => true, // multipart divalidasi di controller
     schema: { 
       tags: ['Posts'], 
       summary: 'Edit Post',
+      description: `Edit caption, tambah media baru, atau hapus media lama.\n\n**Cara hapus media lama:** isi field \`remove_media\` dengan JSON array berisi key media, contoh: \`["posts/images/uuid.png"]\``,
+      consumes: ['multipart/form-data'],
       params: { type: 'object', properties: { id: { type: 'string' } } },
       body: {
         type: 'object',
-        required: ['caption'],
-        properties: { caption: { type: 'string' } }
+        properties: {
+          caption: { type: 'string', description: 'Caption baru (opsional)' },
+          remove_media: { 
+            type: 'string', 
+            description: 'JSON array key media yang dihapus, contoh: ["posts/images/uuid.png"]' 
+          },
+          files: { 
+            type: 'array',
+            items: {
+              type: 'string',
+              format: 'binary'
+            },
+            description: 'Tambah satu atau banyak foto/video baru' 
+          },
+        },
       },
       security: [{ bearerAuth: [] }]
     },
