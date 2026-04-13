@@ -6,7 +6,6 @@ import { deletePost } from '../../controllers/posts/deletePost.js';
 import { likePost } from '../../controllers/posts/likePost.js';
 import { addComment, getComments } from '../../controllers/posts/commentPost.js';
 import { repostPost, sharePost } from '../../controllers/posts/repostPost.js';
-import { addConnection, removeConnection } from '../../services/wsService.js';
 
 async function postRoutes(fastify) {
   const auth = { onRequest: [fastify.authenticate] };
