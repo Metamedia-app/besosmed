@@ -213,6 +213,11 @@ async function postRoutes(fastify) {
         return;
       }
 
+      if (!socket) {
+        fastify.log.error(`[WS] Connection failed: Socket is undefined for user ${user.id}`);
+        return;
+      }
+
       const userId = user.id;
       addConnection(userId, socket);
       fastify.log.info(`[WS] User connected: ${user.nama} (${userId})`);

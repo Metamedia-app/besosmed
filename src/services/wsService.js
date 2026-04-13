@@ -47,7 +47,7 @@ export function broadcast(payload, excludeUserId = null) {
   const data = JSON.stringify(payload);
   connections.forEach((ws, userId) => {
     if (excludeUserId && userId === excludeUserId.toString()) return;
-    if (ws.readyState === 1) {
+    if (ws && ws.readyState === 1) {
       try {
         ws.send(data);
       } catch (err) {
