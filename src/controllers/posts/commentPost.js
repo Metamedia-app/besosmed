@@ -43,13 +43,14 @@ export async function addComment(request, reply) {
     parent_id: parent_id || null,
   });
 
-  // Jika balasan, increment replies_count di parent. Jika komentar utama, update post.
+  // Selalu tambahkan total komentar di postingan
+  post.comments_count += 1;
+  await post.save();
+
+  // Jika ini adalah balasan, tambahkan juga replies_count di komentar induk
   if (parent_id) {
     parentComment.replies_count += 1;
     await parentComment.save();
-  } else {
-    post.comments_count += 1;
-    await post.save();
   }
 
   // Ambil info author untuk response

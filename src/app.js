@@ -17,6 +17,7 @@ import postRoutes from './routes/posts/index.js';
 
 export async function buildApp(opts = {}) {
   const app = Fastify({
+    trustProxy: true, // WAJIB untuk Railway agar IP asli terdeteksi
     logger: {
       transport:
         process.env.NODE_ENV !== 'production'
