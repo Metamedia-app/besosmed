@@ -17,7 +17,7 @@ export async function followUser(request, reply) {
     return reply.status(400).send({ success: false, message: 'Kamu tidak bisa mengikuti diri sendiri.' });
   }
 
-  // 2. Validasi: Target user harus ada
+  // 2. Validasi: Target user harus adaa
   const targetUser = await User.findById(followingId);
   if (!targetUser) {
     return reply.status(404).send({ success: false, message: 'User yang ingin diikuti tidak ditemukan.' });
