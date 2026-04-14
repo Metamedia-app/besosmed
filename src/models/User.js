@@ -67,6 +67,15 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Denormalisasi untuk performa
+    followers_count: {
+      type: Number,
+      default: 0,
+    },
+    following_count: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

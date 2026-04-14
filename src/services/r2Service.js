@@ -21,7 +21,8 @@ const FOLDERS = {
   image: 'posts/images',
   video: 'posts/videos',
   avatar: 'avatars',
-  story: 'stories',
+  story_image: 'stories/images',
+  story_video: 'stories/videos',
 };
 
 /**

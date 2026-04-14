@@ -106,3 +106,13 @@ export function emitNotification(recipientId, notification) {
     data: notification,
   });
 }
+
+export function emitStoryViewUpdate(authorId, storyId, viewsCount) {
+  sendToUser(authorId, {
+    type: 'story_view_update',
+    data: {
+      story_id: storyId.toString(),
+      views_count: viewsCount,
+    },
+  });
+}

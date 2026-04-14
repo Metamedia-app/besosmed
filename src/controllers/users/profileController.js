@@ -1,4 +1,6 @@
 import User from '../../models/User.js';
+import Follow from '../../models/Follow.js';
+import bcrypt from 'bcrypt';
 import { uploadFile, deleteFile } from '../../services/r2Service.js';
 
 /**
@@ -156,5 +158,82 @@ export async function deleteAvatar(request, reply) {
   return reply.send({
     success: true,
     message: 'Foto profil berhasil dihapus.',
+  });
+}
+/**
+ * PATCH /me/password
+ * Ganti password user dengan verifikasi password lama
+ */
+export async function changePassword(request, reply) {
+  const userId = request.user.id;
+  const { oldPassword, newPassword } = request.body;
+
+  if (!oldPassword || !newPassword) {
+    return reply.status(400).send({
+      success: false,
+      message: 'Password lama dan password baru wajib diisi.',
+    });
+  }
+
+  // Cari user dan sertakan password
+  const user = await User.findById(userId).select('+password');
+  if (!user) {
+    return reply.status(404).send({ success: false, message: 'User tidak ditemukan.' });
+  }
+
+  // 1. Verifikasi password lama
+  const isMatch = await bcrypt.compare(oldPassword, user.password);
+  if (!isMatch) {
+    return reply.status(401).send({
+      success: false,
+      message: 'Password lama yang kamu masukkan salah.',
+    });
+  }
+
+  // 2. Hash password baru
+  const saltRounds = 10;
+  user.password = await bcrypt.hash(newPassword, saltRounds);
+
+  // 3. Simpan perubahan
+  await user.save();
+
+  return reply.send({
+    success: true,
+    message: 'Password berhasil diganti. Silakan gunakan password baru untuk login berikutnya.',
+  });
+}
+
+/**
+ * GET /users/:id
+ * Mengambil profil publik user lain + Status hubungan (Follow/Following/Folback)
+ */
+export async function getUserProfile(request, reply) {
+  const meId = request.user.id;
+  const { id: targetId } = request.params;
+
+  // 1. Ambil data user target
+  const targetUser = await User.findById(targetId)
+    .select('nim nama program_studi status_mahasiswa jenis_kelamin bio avatar_url followers_count following_count createdAt')
+    .lean();
+
+  if (!targetUser) {
+    return reply.status(404).send({ success: false, message: 'User tidak ditemukan.' });
+  }
+
+  // 2. Cek hubungan timbal balik
+  const [following, follower] = await Promise.all([
+    Follow.findOne({ follower_id: meId, following_id: targetId }).lean(),
+    Follow.findOne({ follower_id: targetId, following_id: meId }).lean(),
+  ]);
+
+  return reply.send({
+    success: true,
+    data: {
+      user: {
+        ...targetUser,
+        is_following: !!following,
+        follows_me: !!follower, // Indikator Folback! 🤝
+      },
+    },
   });
 }

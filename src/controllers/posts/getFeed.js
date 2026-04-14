@@ -1,20 +1,40 @@
 import Post from '../../models/Post.js';
 import Like from '../../models/Like.js';
+import Follow from '../../models/Follow.js';
 
 /**
- * Get feed — postingan terbaru dengan cursor-based pagination
- * Query params: ?limit=10&before=<post_id atau timestamp>
+ * Get feed — Algoritma campuran (Following + Discovery)
+ * Menampilkan postingan dari orang yang diikuti, diri sendiri, 
+ * dan sesekali postingan populer dari orang asing agar Home tidak sepi.
  */
 export async function getFeed(request, reply) {
   const userId = request.user.id;
   const limit = Math.min(parseInt(request.query.limit) || 10, 30);
-  const before = request.query.before; // ISO date atau ObjectId
+  const before = request.query.before;
 
-  const filter = { is_deleted: false };
+  // 1. Ambil daftar user yang diikuti (following)
+  const follows = await Follow.find({ follower_id: userId }).select('following_id').lean();
+  const followingIds = follows.map(f => f.following_id);
+
+  // 2. Tentukan kriteria filter
+  // - Postingan teman & diri sendiri
+  // - Postingan global yang "populer" (Discovery) agar Home tidak kosong
+  const filter = {
+    is_deleted: false,
+    $or: [
+      { author_id: { $in: followingIds } }, // Teman
+      { author_id: userId },                // Diri Sendiri
+      { likes_count: { $gte: 2 } }          // Discovery: Postingan populer (min 2 likes)
+    ]
+  };
+
+  // Jika user belum follow siapa pun, porsi discovery otomatis lebih besar
+  
   if (before) {
     filter.createdAt = { $lt: new Date(before) };
   }
 
+  // 3. Eksekusi kueri
   const posts = await Post.find(filter)
     .sort({ createdAt: -1 })
     .limit(limit)
@@ -26,16 +46,19 @@ export async function getFeed(request, reply) {
     })
     .lean();
 
-  // Cek apakah user sudah like masing-masing post
+  // 4. Cek status like untuk masing-masing post
   const postIds = posts.map((p) => p._id);
   const userLikes = await Like.find({ user_id: userId, post_id: { $in: postIds } }).lean();
   const likedSet = new Set(userLikes.map((l) => l.post_id.toString()));
 
+  // 5. Format data untuk Frontend
   const formatted = posts.map((p) => ({
     ...p,
     author: p.author_id,
     author_id: undefined,
     is_liked: likedSet.has(p._id.toString()),
+    // Tandai apakah ini postingan teman atau discovery (optional buat FE)
+    is_discovery: !followingIds.includes(p.author?._id?.toString() || p.author_id?.toString()) && p.author_id?.toString() !== userId
   }));
 
   const nextCursor = posts.length === limit ? posts[posts.length - 1].createdAt.toISOString() : null;
@@ -46,6 +69,7 @@ export async function getFeed(request, reply) {
       posts: formatted,
       next_cursor: nextCursor,
       has_more: !!nextCursor,
+      count: posts.length
     },
   });
 }

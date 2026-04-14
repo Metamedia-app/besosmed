@@ -15,13 +15,13 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['like', 'comment', 'repost'],
+      enum: ['like', 'comment', 'repost', 'follow'],
       required: true,
     },
     post_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Post',
-      required: true,
+      required: false, // Opsional karena tidak semua notif ada postingannya (misal: Follow)
     },
     is_read: { type: Boolean, default: false },
   },
