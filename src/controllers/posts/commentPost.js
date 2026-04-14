@@ -36,21 +36,35 @@ export async function addComment(request, reply) {
     }
   }
 
+  // Logic Materialized Path & Atomic Recursive Count
+  let topLevelId = null;
+  let parentIds = [];
+
+  if (parentComment) {
+    // Jika parent punya top_level_id, gunakan itu. Jika tidak, parent-lah root-nya.
+    topLevelId = parentComment.top_level_id || parentComment._id;
+    // Path = path parent + ID parent
+    parentIds = [...(parentComment.parent_ids || []), parentComment._id];
+  }
+
   const comment = await Comment.create({
     post_id: postId,
     author_id: userId,
     body: body.trim(),
     parent_id: parent_id || null,
+    top_level_id: topLevelId,
+    parent_ids: parentIds,
   });
 
-  // Selalu tambahkan total komentar di postingan
-  post.comments_count += 1;
-  await post.save();
+  // 1. Update total komentar di postingan (Atomic)
+  await Post.updateOne({ _id: postId }, { $inc: { comments_count: 1 } });
 
-  // Jika ini adalah balasan, tambahkan juga replies_count di komentar induk
-  if (parent_id) {
-    parentComment.replies_count += 1;
-    await parentComment.save();
+  // 2. Update SEMUA leluhur (Recursive Count) secara atomik
+  if (parentIds.length > 0) {
+    await Comment.updateMany(
+      { _id: { $in: parentIds } },
+      { $inc: { replies_count: 1 } }
+    );
   }
 
   // Ambil info author untuk response
@@ -60,6 +74,8 @@ export async function addComment(request, reply) {
     _id: comment._id,
     post_id: comment.post_id,
     parent_id: comment.parent_id,
+    top_level_id: comment.top_level_id,
+    parent_ids: comment.parent_ids,
     body: comment.body,
     author,
     created_at: comment.createdAt,
@@ -148,5 +164,55 @@ export async function getComments(request, reply) {
   return reply.send({
     success: true,
     data: { comments: formatted, total, has_more: parsedSkip + parsedLimit < total },
+  });
+}
+
+/**
+ * MENGAMBIL SELURUH POHON BALASAN (FLAT TREE)
+ * Endpoint: GET /posts/:id/comments/:commentId/tree
+ */
+export async function getCommentTree(request, reply) {
+  const { id: postId, commentId } = request.params;
+
+  // Pastikan Root Komentarnya ada
+  const rootComment = await Comment.findOne({ 
+    _id: commentId, 
+    post_id: postId, 
+    is_deleted: false 
+  }).populate('author_id', 'nim nama avatar_url').lean();
+
+  if (!rootComment) {
+    return reply.status(404).send({ success: false, message: 'Komentar utama tidak ditemukan.' });
+  }
+
+  // Ambil semua balasan yang punya top_level_id sama
+  const replies = await Comment.find({
+    post_id: postId,
+    top_level_id: commentId,
+    is_deleted: false
+  })
+    .sort({ createdAt: 1 }) // Urutan percakapan (Tua ke Baru)
+    .populate('author_id', 'nim nama avatar_url')
+    .lean();
+
+  const formattedReplies = replies.map((r) => ({
+    ...r,
+    author: r.author_id,
+    author_id: undefined,
+  }));
+
+  const formattedRoot = {
+    ...rootComment,
+    author: rootComment.author_id,
+    author_id: undefined
+  };
+
+  return reply.send({
+    success: true,
+    data: {
+      root: formattedRoot,
+      replies: formattedReplies,
+      total_replies: rootComment.replies_count
+    }
   });
 }

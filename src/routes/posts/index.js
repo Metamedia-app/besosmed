@@ -4,7 +4,7 @@ import { getPost } from '../../controllers/posts/getPost.js';
 import { editPost } from '../../controllers/posts/editPost.js';
 import { deletePost } from '../../controllers/posts/deletePost.js';
 import { likePost } from '../../controllers/posts/likePost.js';
-import { addComment, getComments } from '../../controllers/posts/commentPost.js';
+import { addComment, getComments, getCommentTree } from '../../controllers/posts/commentPost.js';
 import { repostPost, sharePost } from '../../controllers/posts/repostPost.js';
 
 async function postRoutes(fastify) {
@@ -143,6 +143,25 @@ async function postRoutes(fastify) {
       security: [{ bearerAuth: [] }]
     },
     handler: getComments
+  });
+
+  // Get Comment Tree (Thread)
+  fastify.get('/posts/:id/comments/:commentId/tree', {
+    ...auth,
+    schema: { 
+      tags: ['Posts'], 
+      summary: 'Get Comment Thread (Tree)',
+      description: 'Mengambil seluruh balasan dalam satu thread (flat list) untuk performa tinggi.',
+      params: { 
+        type: 'object', 
+        properties: { 
+          id: { type: 'string', description: 'Post ID' },
+          commentId: { type: 'string', description: 'Root Comment ID' } 
+        } 
+      },
+      security: [{ bearerAuth: [] }]
+    },
+    handler: getCommentTree
   });
 
   // Add/Reply Comment
