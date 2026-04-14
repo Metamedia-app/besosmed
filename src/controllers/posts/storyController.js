@@ -88,7 +88,7 @@ export async function getStories(request, reply) {
   const ids = [...followingIds, userId];
 
   // 2. Ambil story yang masih aktif (belum expired)
-  // Story yang sudah lewat 1 menit akan otomatis hilang dari database oleh MongoDB
+  // Story yang sudah lewat 24 jam akan otomatis dihapus oleh MongoDB (TTL Index)
   const stories = await Story.find({ author_id: { $in: ids } })
     .sort({ createdAt: -1 })
     .populate('author_id', 'nim nama avatar_url')

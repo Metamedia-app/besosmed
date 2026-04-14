@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import User from '../../models/User.js';
 import Follow from '../../models/Follow.js';
 import Notification from '../../models/Notification.js';
-import { emitNotification } from '../../services/wsService.js';
+import { emitNotification, emitFollowUpdate } from '../../services/wsService.js';
 
 /**
  * POST /users/:id/follow
@@ -27,13 +27,14 @@ export async function followUser(request, reply) {
     // 3. Simpan data follow
     await Follow.create({ follower_id: followerId, following_id: followingId });
 
-    // 4. Update counts (denormalisasi)
-    // Tambah following_count untuk si pengikut
-    await User.findByIdAndUpdate(followerId, { $inc: { following_count: 1 } });
-    // Tambah followers_count untuk si target
-    await User.findByIdAndUpdate(followingId, { $inc: { followers_count: 1 } });
+    // 4. Update counts (denormalisasi) dan ambil data terbaru
+    const followerStatus = await User.findByIdAndUpdate(followerId, { $inc: { following_count: 1 } }, { new: true });
+    const targetStatus = await User.findByIdAndUpdate(followingId, { $inc: { followers_count: 1 } }, { new: true });
 
-    // 5. NOTIFIKASI REAL-TIME
+    // 5. BROADCAST DATA REAL-TIME (Untuk update angka di profil)
+    emitFollowUpdate(followerId, followingId, 'follow', targetStatus.followers_count, followerStatus.following_count);
+
+    // 6. NOTIFIKASI REAL-TIME
     const notif = await Notification.create({
       recipient_id: followingId,
       sender_id: followerId,
@@ -77,8 +78,11 @@ export async function unfollowUser(request, reply) {
   }
 
   // Update counts (denormalisasi)
-  await User.findByIdAndUpdate(followerId, { $inc: { following_count: -1 } });
-  await User.findByIdAndUpdate(followingId, { $inc: { followers_count: -1 } });
+  const follower = await User.findByIdAndUpdate(followerId, { $inc: { following_count: -1 } }, { new: true });
+  const target = await User.findByIdAndUpdate(followingId, { $inc: { followers_count: -1 } }, { new: true });
+
+  // BROADCAST DATA REAL-TIME
+  emitFollowUpdate(followerId, followingId, 'unfollow', target.followers_count, follower.following_count);
 
   return reply.status(200).send({
     success: true,

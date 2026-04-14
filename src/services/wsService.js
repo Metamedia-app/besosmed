@@ -116,3 +116,16 @@ export function emitStoryViewUpdate(authorId, storyId, viewsCount) {
     },
   });
 }
+
+export function emitFollowUpdate(followerId, followingId, action, followersCount, followingCount) {
+  broadcast({
+    type: 'follow_update',
+    data: {
+      follower_id: followerId.toString(),
+      following_id: followingId.toString(),
+      action, // 'follow' atau 'unfollow'
+      followers_count: followersCount,
+      following_count: followingCount,
+    },
+  });
+}
