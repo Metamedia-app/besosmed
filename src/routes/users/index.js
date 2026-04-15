@@ -1,6 +1,7 @@
 import { getMe, updateMe, uploadAvatar, deleteAvatar, changePassword, getUserProfile } from '../../controllers/users/profileController.js';
 import { followUser, unfollowUser, getFollowers, getFollowing } from '../../controllers/users/followController.js';
 import { searchUsers } from '../../controllers/users/searchUser.js';
+import { getUserPosts } from '../../controllers/posts/getUserPosts.js';
 
 async function userRoutes(fastify) {
   const auth = { onRequest: [fastify.authenticate] };
@@ -111,6 +112,29 @@ async function userRoutes(fastify) {
       },
     },
     handler: getUserProfile,
+  });
+
+  // ── GET /users/:id/posts ──────────────────────────────────────────────────────
+  fastify.get('/:id/posts', {
+    ...auth,
+    schema: {
+      tags: ['Posts'],
+      summary: 'Get User Activity (Posts & Reposts)',
+      description: 'Mengambil gabungan postingan asli dan repost milik user tertentu. Sangat efisien untuk halaman profil.',
+      params: {
+        type: 'object',
+        properties: { id: { type: 'string', description: 'ID User yang ingin dilihat' } }
+      },
+      querystring: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer', default: 10 },
+          before: { type: 'string', description: 'Cursor timestamp untuk pagination' }
+        }
+      },
+      security: [{ bearerAuth: [] }],
+    },
+    handler: getUserPosts,
   });
 
   // ── PATCH /me ─────────────────────────────────────────────────────────────────
