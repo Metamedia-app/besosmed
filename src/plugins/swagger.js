@@ -11,12 +11,9 @@ async function swaggerPlugin(fastify) {
         description: 'API documentation for BeSosmed — Social Media Backend',
         version: '1.0.0',
       },
-      servers: [
-        {
-          url: process.env.APP_URL || '/',
-          description: process.env.APP_URL ? 'Production Server' : 'Auto-detected Server',
-        },
-      ],
+      servers: process.env.APP_URL 
+        ? [{ url: process.env.APP_URL, description: 'Current Environment' }]
+        : [],
       tags: [
         { name: 'Auth', description: 'Autentikasi — Login & Token' },
         { name: 'Profile', description: 'Profil — Data diri, Bio, dan Avatar' },

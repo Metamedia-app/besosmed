@@ -17,7 +17,7 @@ async function storyRoutes(fastify) {
         type: 'object',
         properties: {
           content: { type: 'string', description: 'Teks story (opsional)' },
-          file: { 
+          media: { 
             type: 'string', 
             format: 'binary', 
             description: 'Pilih foto atau video (maks 50MB)' 
@@ -54,7 +54,45 @@ async function storyRoutes(fastify) {
             data: {
               type: 'object',
               properties: {
-                stories: { type: 'array', items: { type: 'object' } }
+                stories: { 
+                  type: 'array', 
+                  items: { 
+                    type: 'object',
+                    properties: {
+                      user: {
+                        type: 'object',
+                        properties: {
+                          _id: { type: 'string' },
+                          nim: { type: 'string' },
+                          nama: { type: 'string' },
+                          avatar_url: { type: 'string' }
+                        }
+                      },
+                      items: {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            _id: { type: 'string' },
+                            author_id: { type: 'object' },
+                            content: { type: 'string' },
+                            media: {
+                              type: 'object',
+                              properties: {
+                                url: { type: 'string' },
+                                key: { type: 'string' },
+                                type: { type: 'string' }
+                              }
+                            },
+                            views_count: { type: 'number' },
+                            createdAt: { type: 'string' },
+                            updatedAt: { type: 'string' }
+                          }
+                        }
+                      }
+                    }
+                  } 
+                }
               }
             }
           }
@@ -107,7 +145,20 @@ async function storyRoutes(fastify) {
               type: 'object',
               properties: {
                 total_views: { type: 'number' },
-                viewers: { type: 'array', items: { type: 'object' } }
+                viewers: { 
+                  type: 'array', 
+                  items: { 
+                    type: 'object',
+                    properties: {
+                      _id: { type: 'string' },
+                      nim: { type: 'string' },
+                      nama: { type: 'string' },
+                      avatar_url: { type: 'string' },
+                      program_studi: { type: 'string' },
+                      viewed_at: { type: 'string' }
+                    }
+                  } 
+                }
               }
             }
           }
