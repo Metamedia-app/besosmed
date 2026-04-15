@@ -18,7 +18,10 @@ export async function getPost(request, reply) {
     return reply.status(404).send({ success: false, message: 'Postingan tidak ditemukan.' });
   }
 
-  const liked = await Like.exists({ user_id: userId, post_id: id });
+  const [liked, reposted] = await Promise.all([
+    Like.exists({ user_id: userId, post_id: id }),
+    Post.exists({ author_id: userId, original_post_id: id, type: 'repost', is_deleted: false })
+  ]);
 
   return reply.send({
     success: true,
@@ -28,6 +31,7 @@ export async function getPost(request, reply) {
         author: post.author_id,
         author_id: undefined,
         is_liked: !!liked,
+        is_reposted: !!reposted,
       },
     },
   });

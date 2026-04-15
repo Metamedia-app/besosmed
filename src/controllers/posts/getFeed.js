@@ -46,10 +46,20 @@ export async function getFeed(request, reply) {
     })
     .lean();
 
-  // 4. Cek status like untuk masing-masing post
+  // 4. Cek status like & repost untuk masing-masing post
   const postIds = posts.map((p) => p._id);
-  const userLikes = await Like.find({ user_id: userId, post_id: { $in: postIds } }).lean();
+  const [userLikes, userReposts] = await Promise.all([
+    Like.find({ user_id: userId, post_id: { $in: postIds } }).lean(),
+    Post.find({ 
+      author_id: userId, 
+      original_post_id: { $in: postIds },
+      type: 'repost',
+      is_deleted: false
+    }).select('original_post_id').lean()
+  ]);
+
   const likedSet = new Set(userLikes.map((l) => l.post_id.toString()));
+  const repostedSet = new Set(userReposts.map((r) => r.original_post_id.toString()));
 
   // 5. Format data untuk Frontend
   const formatted = posts.map((p) => ({
@@ -57,6 +67,7 @@ export async function getFeed(request, reply) {
     author: p.author_id,
     author_id: undefined,
     is_liked: likedSet.has(p._id.toString()),
+    is_reposted: repostedSet.has(p._id.toString()),
     // Tandai apakah ini postingan teman atau discovery (optional buat FE)
     is_discovery: !followingIds.includes(p.author?._id?.toString() || p.author_id?.toString()) && p.author_id?.toString() !== userId
   }));

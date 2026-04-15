@@ -33,10 +33,20 @@ export async function getUserPosts(request, reply) {
       })
       .lean();
 
-    // Cek status like
+    // Cek status like & repost
     const postIds = posts.map((p) => p._id);
-    const userLikes = await Like.find({ user_id: meId, post_id: { $in: postIds } }).lean();
+    const [userLikes, userReposts] = await Promise.all([
+      Like.find({ user_id: meId, post_id: { $in: postIds } }).lean(),
+      Post.find({ 
+        author_id: meId, 
+        original_post_id: { $in: postIds },
+        type: 'repost',
+        is_deleted: false
+      }).select('original_post_id').lean()
+    ]);
+
     const likedSet = new Set(userLikes.map((l) => l.post_id.toString()));
+    const repostedSet = new Set(userReposts.map((r) => r.original_post_id.toString()));
 
     // Format data untuk Frontend
     const formatted = posts.map((p) => ({
@@ -44,6 +54,7 @@ export async function getUserPosts(request, reply) {
       author: p.author_id,
       author_id: undefined,
       is_liked: likedSet.has(p._id.toString()),
+      is_reposted: repostedSet.has(p._id.toString()),
     }));
 
     const nextCursor = posts.length === limit ? posts[posts.length - 1].createdAt.toISOString() : null;

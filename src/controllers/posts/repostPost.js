@@ -17,6 +17,33 @@ export async function repostPost(request, reply) {
     return reply.status(400).send({ success: false, message: 'Kamu tidak bisa memposting ulang postinganmu sendiri.' });
   }
 
+  // Idempotensi: Cek apakah user sudah pernah me-repost
+  const existingRepost = await Post.findOne({
+    author_id: userId,
+    original_post_id: originalPostId,
+    type: 'repost',
+    is_deleted: false,
+  });
+
+  if (existingRepost) {
+    // Jika sudah ada, kembalikan data yang sudah ada (200 OK)
+    await existingRepost.populate('author_id', 'nim nama avatar_url program_studi');
+    await existingRepost.populate({
+      path: 'original_post_id',
+      select: 'caption media author_id createdAt',
+      populate: { path: 'author_id', select: 'nim nama avatar_url' },
+    });
+    
+    const repostObj = existingRepost.toObject();
+    const formatted = { ...repostObj, author: repostObj.author_id, author_id: undefined };
+    
+    return reply.send({
+      success: true,
+      message: 'Kamu sudah memposting ulang postingan ini.',
+      data: { post: formatted, original_reposts_count: originalPost.reposts_count },
+    });
+  }
+
   // Buat postingan baru bertipe repost
   const repost = await Post.create({
     author_id: userId,
@@ -65,6 +92,59 @@ export async function repostPost(request, reply) {
     message: 'Postingan berhasil diposting ulang.',
     data: { post: formatted, original_reposts_count: originalPost.reposts_count },
   });
+}
+
+/**
+ * DELETE /api/v1/posts/:id/repost
+ * Membatalkan repost
+ */
+export async function unrepostPost(request, reply) {
+  const userId = request.user.id;
+  const { id: originalPostId } = request.params;
+
+  try {
+    // 1. Cari dokumen repost milik user ini untuk post ini
+    const repost = await Post.findOne({
+      author_id: userId,
+      original_post_id: originalPostId,
+      type: 'repost'
+    });
+
+    if (!repost) {
+      return reply.status(404).send({
+        success: false,
+        message: 'Repost tidak ditemukan.'
+      });
+    }
+
+    // 2. Hapus dokumen repost tersebut (hard delete untuk repost records agar hemat storage)
+    await Post.deleteOne({ _id: repost._id });
+
+    // 3. Kurangi counter di post asli
+    const originalPost = await Post.findById(originalPostId);
+    if (originalPost && originalPost.reposts_count > 0) {
+      originalPost.reposts_count -= 1;
+      await originalPost.save();
+
+      // Broadcast update
+      emitRepostUpdate(originalPostId, originalPost.reposts_count);
+    }
+
+    return reply.send({
+      success: true,
+      message: 'Repost dihapus.',
+      data: {
+        original_reposts_count: originalPost ? originalPost.reposts_count : 0
+      }
+    });
+
+  } catch (error) {
+    request.log.error(error);
+    return reply.status(500).send({
+      success: false,
+      message: 'Terjadi kesalahan saat membatalkan repost.'
+    });
+  }
 }
 
 /**

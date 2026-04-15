@@ -57,6 +57,7 @@ const postSchema = new mongoose.Schema(
 // Index untuk feed (sort by createdAt desc)
 postSchema.index({ createdAt: -1 });
 postSchema.index({ author_id: 1, createdAt: -1 });
+postSchema.index({ original_post_id: 1, author_id: 1, type: 1 });
 
 const Post = mongoose.model('Post', postSchema);
 export default Post;

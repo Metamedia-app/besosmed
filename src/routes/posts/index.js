@@ -5,7 +5,7 @@ import { editPost } from '../../controllers/posts/editPost.js';
 import { deletePost } from '../../controllers/posts/deletePost.js';
 import { likePost } from '../../controllers/posts/likePost.js';
 import { addComment, getComments, getCommentTree } from '../../controllers/posts/commentPost.js';
-import { repostPost, sharePost } from '../../controllers/posts/repostPost.js';
+import { repostPost, sharePost, unrepostPost } from '../../controllers/posts/repostPost.js';
 
 async function postRoutes(fastify) {
   const auth = { onRequest: [fastify.authenticate] };
@@ -194,6 +194,19 @@ async function postRoutes(fastify) {
       security: [{ bearerAuth: [] }] 
     },
     handler: repostPost
+  });
+
+  // Unrepost
+  fastify.delete('/posts/:id/repost', {
+    ...auth,
+    schema: { 
+      tags: ['Posts'], 
+      summary: 'Unrepost',
+      description: 'Membatalkan repost yang sudah dilakukan.',
+      params: { type: 'object', properties: { id: { type: 'string', description: 'Original Post ID' } } },
+      security: [{ bearerAuth: [] }] 
+    },
+    handler: unrepostPost
   });
 
   // Share
