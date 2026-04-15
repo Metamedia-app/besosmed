@@ -17,10 +17,12 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      index: true,
     },
     program_studi: {
       type: String,
       trim: true,
+      index: true,
     },
     tanggal_masuk: {
       type: String,

@@ -1,8 +1,29 @@
 import { getMe, updateMe, uploadAvatar, deleteAvatar, changePassword, getUserProfile } from '../../controllers/users/profileController.js';
 import { followUser, unfollowUser, getFollowers, getFollowing } from '../../controllers/users/followController.js';
+import { searchUsers } from '../../controllers/users/searchUser.js';
 
 async function userRoutes(fastify) {
   const auth = { onRequest: [fastify.authenticate] };
+
+  // ── GET /search ──────────────────────────────────────────────────────────────
+  fastify.get('/search', {
+    ...auth,
+    schema: {
+      tags: ['Profile'],
+      summary: 'Search Users',
+      description: 'Mencari mahasiswa berdasarkan nama, nim, atau program studi.',
+      querystring: {
+        type: 'object',
+        properties: {
+          q: { type: 'string', description: 'Kata kunci pencarian (nama/nim/prodi)' },
+          limit: { type: 'integer', default: 20 },
+          skip: { type: 'integer', default: 0 }
+        }
+      },
+      security: [{ bearerAuth: [] }],
+    },
+    handler: searchUsers,
+  });
 
   // ── GET /me ──────────────────────────────────────────────────────────────────
   fastify.get('/me', {
