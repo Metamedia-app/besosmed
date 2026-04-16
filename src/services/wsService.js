@@ -129,3 +129,12 @@ export function emitFollowUpdate(followerId, followingId, action, followersCount
     },
   });
 }
+
+export function emitDeletePost(postId) {
+  broadcast({
+    type: 'delete_post',
+    data: {
+      post_id: postId.toString(),
+    },
+  });
+}

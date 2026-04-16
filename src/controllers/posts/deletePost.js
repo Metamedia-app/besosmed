@@ -3,6 +3,7 @@ import Comment from '../../models/Comment.js';
 import Like from '../../models/Like.js';
 import Notification from '../../models/Notification.js';
 import { deleteFile } from '../../services/r2Service.js';
+import { emitDeletePost } from '../../services/wsService.js';
 
 export async function deletePost(request, reply) {
   const userId = request.user.id;
@@ -35,6 +36,9 @@ export async function deletePost(request, reply) {
     request.log.error(error);
     // Kita tetap lanjut mengirim sukses karena post utama biasanya sudah terhapus
   }
+
+  // 3. Broadcast real-time agar post hilang di layar user lain
+  emitDeletePost(id);
 
   return reply.send({
     success: true,
