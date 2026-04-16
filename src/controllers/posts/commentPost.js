@@ -81,41 +81,95 @@ export async function addComment(request, reply) {
     created_at: comment.createdAt,
   };
 
-  // NOTIFIKASI
+  // NOTIFIKASI PINTAR (Grouping Logic)
   if (parent_id) {
-    // Jika balasan: Kirim notifikasi ke pemilik komentar ASLI (jika bukan diri sendiri)
+    // 1. Jika BALASAN: Notifikasi ke pemilik komentar yang dibalas
     if (parentComment.author_id.toString() !== userId) {
-      const notif = await Notification.create({
-        recipient_id: parentComment.author_id,
-        sender_id: userId,
-        type: 'comment',
-        post_id: postId,
-      });
+      const existingNotif = await Notification.findOneAndUpdate(
+        {
+          recipient_id: parentComment.author_id,
+          post_id: postId,
+          type: 'comment',
+          is_read: false
+        },
+        {
+          $set: { sender_id: userId },
+          $inc: { others_count: 1 }
+        },
+        { new: true }
+      );
+
+      let notif;
+      if (!existingNotif) {
+        notif = await Notification.create({
+          recipient_id: parentComment.author_id,
+          sender_id: userId,
+          type: 'comment',
+          post_id: postId,
+        });
+      } else {
+        notif = existingNotif;
+      }
+
+      // Format pesan real-time
+      const count = notif.others_count || 0;
+      const message = count > 0 
+        ? `${request.user.nama} dan ${count} lainnya membalas komentarmu.`
+        : `${request.user.nama} membalas komentarmu.`;
+
       emitNotification(parentComment.author_id, {
         id: notif._id,
         type: 'comment',
         sender_id: userId,
         post_id: postId,
-        message: `${request.user.nama} membalas komentarmu.`,
+        message,
         created_at: notif.createdAt,
+        updatedAt: notif.updatedAt,
       });
     }
   } else {
-    // Jika komentar utama: Kirim notifikasi ke pemilik POSTINGAN (jika bukan diri sendiri)
+    // 2. Jika KOMENTAR UTAMA: Notifikasi ke pemilik postingan
     if (post.author_id.toString() !== userId) {
-      const notif = await Notification.create({
-        recipient_id: post.author_id,
-        sender_id: userId,
-        type: 'comment',
-        post_id: postId,
-      });
+      const existingNotif = await Notification.findOneAndUpdate(
+        {
+          recipient_id: post.author_id,
+          post_id: postId,
+          type: 'comment',
+          is_read: false
+        },
+        {
+          $set: { sender_id: userId },
+          $inc: { others_count: 1 }
+        },
+        { new: true }
+      );
+
+      let notif;
+      if (!existingNotif) {
+        notif = await Notification.create({
+          recipient_id: post.author_id,
+          sender_id: userId,
+          type: 'comment',
+          post_id: postId,
+        });
+      } else {
+        notif = existingNotif;
+      }
+
+      // Format pesan real-time
+      const count = notif.others_count || 0;
+      const message = count > 0 
+        ? `${request.user.nama} dan ${count} lainnya mengomentari postinganmu.`
+        : `${request.user.nama} mengomentari postinganmu.`;
+
       emitNotification(post.author_id, {
         id: notif._id,
         type: 'comment',
         sender_id: userId,
         post_id: postId,
-        message: `${request.user.nama} mengomentari postinganmu.`,
+        message,
         created_at: notif.createdAt,
+        updatedAt: notif.updatedAt,
       });
     }
   }

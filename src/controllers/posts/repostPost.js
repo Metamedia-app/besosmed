@@ -67,21 +67,50 @@ export async function repostPost(request, reply) {
   const repostObj = repost.toObject();
   const formatted = { ...repostObj, author: repostObj.author_id, author_id: undefined };
 
-  // Notifikasi ke pemilik post asli
-  const notif = await Notification.create({
-    recipient_id: originalPost.author_id,
-    sender_id: userId,
-    type: 'repost',
-    post_id: originalPostId,
-  });
-  emitNotification(originalPost.author_id, {
-    id: notif._id,
-    type: 'repost',
-    sender_id: userId,
-    post_id: originalPostId,
-    message: `${request.user.nama} memposting ulang postinganmu.`,
-    created_at: notif.createdAt,
-  });
+  // Notifikasi atau Update Notifikasi ke pemilik post asli
+  if (originalPost.author_id.toString() !== userId) {
+    const existingNotif = await Notification.findOneAndUpdate(
+      {
+        recipient_id: originalPost.author_id,
+        post_id: originalPostId,
+        type: 'repost',
+        is_read: false
+      },
+      {
+        $set: { sender_id: userId },
+        $inc: { others_count: 1 }
+      },
+      { new: true }
+    );
+
+    let notif;
+    if (!existingNotif) {
+      notif = await Notification.create({
+        recipient_id: originalPost.author_id,
+        sender_id: userId,
+        type: 'repost',
+        post_id: originalPostId,
+      });
+    } else {
+      notif = existingNotif;
+    }
+
+    // Format pesan real-time
+    const count = notif.others_count || 0;
+    const message = count > 0 
+      ? `${request.user.nama} dan ${count} lainnya memposting ulang postinganmu.`
+      : `${request.user.nama} memposting ulang postinganmu.`;
+
+    emitNotification(originalPost.author_id, {
+      id: notif._id,
+      type: 'repost',
+      sender_id: userId,
+      post_id: originalPostId,
+      message,
+      created_at: notif.createdAt,
+      updatedAt: notif.updatedAt,
+    });
+  }
 
   // Broadcast repost update & post baru
   emitRepostUpdate(originalPostId, originalPost.reposts_count);

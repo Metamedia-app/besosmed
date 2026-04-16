@@ -27,21 +27,49 @@ export async function likePost(request, reply) {
     post.likes_count += 1;
     liked = true;
 
-    // Kirim notifikasi ke pemilik post (kalau bukan diri sendiri)
+    // Kirim atau Update notifikasi ke pemilik post (kalau bukan diri sendiri)
     if (post.author_id.toString() !== userId) {
-      const notif = await Notification.create({
-        recipient_id: post.author_id,
-        sender_id: userId,
-        type: 'like',
-        post_id: postId,
-      });
+      const existingNotif = await Notification.findOneAndUpdate(
+        {
+          recipient_id: post.author_id,
+          post_id: postId,
+          type: 'like',
+          is_read: false
+        },
+        {
+          $set: { sender_id: userId },
+          $inc: { others_count: 1 }
+        },
+        { new: true }
+      );
+
+      let notif;
+      if (!existingNotif) {
+        // Jika tidak ada notif unread, buat baru
+        notif = await Notification.create({
+          recipient_id: post.author_id,
+          sender_id: userId,
+          type: 'like',
+          post_id: postId,
+        });
+      } else {
+        notif = existingNotif;
+      }
+
+      // Emit notification real-time via Socket.io
+      const count = notif.others_count || 0;
+      const message = count > 0 
+        ? `${request.user.nama} dan ${count} lainnya menyukai postinganmu.`
+        : `${request.user.nama} menyukai postinganmu.`;
+
       emitNotification(post.author_id, {
         id: notif._id,
         type: 'like',
         sender_id: userId,
         post_id: postId,
-        message: `${request.user.nama} menyukai postinganmu.`,
+        message,
         created_at: notif.createdAt,
+        updatedAt: notif.updatedAt,
       });
     }
   }

@@ -24,14 +24,15 @@ const notificationSchema = new mongoose.Schema(
       required: false, // Opsional karena tidak semua notif ada postingannya (misal: Follow)
     },
     is_read: { type: Boolean, default: false },
+    others_count: { type: Number, default: 0 },
   },
   {
-    timestamps: { createdAt: true, updatedAt: false },
+    timestamps: true, // Mengaktifkan createdAt dan updatedAt
     collection: 'notifications',
   }
 );
 
-notificationSchema.index({ recipient_id: 1, is_read: 1, createdAt: -1 });
+notificationSchema.index({ recipient_id: 1, is_read: 1, updatedAt: -1 });
 
 const Notification = mongoose.model('Notification', notificationSchema);
 export default Notification;

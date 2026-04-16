@@ -34,19 +34,44 @@ export async function followUser(request, reply) {
     // 5. BROADCAST DATA REAL-TIME (Untuk update angka di profil)
     emitFollowUpdate(followerId, followingId, 'follow', targetStatus.followers_count, followerStatus.following_count);
 
-    // 6. NOTIFIKASI REAL-TIME
-    const notif = await Notification.create({
-      recipient_id: followingId,
-      sender_id: followerId,
-      type: 'follow',
-    });
+    // 6. NOTIFIKASI ATAU UPDATE NOTIFIKASI REAL-TIME
+    const existingNotif = await Notification.findOneAndUpdate(
+      {
+        recipient_id: followingId,
+        type: 'follow',
+        is_read: false
+      },
+      {
+        $set: { sender_id: followerId },
+        $inc: { others_count: 1 }
+      },
+      { new: true }
+    );
+
+    let notif;
+    if (!existingNotif) {
+      notif = await Notification.create({
+        recipient_id: followingId,
+        sender_id: followerId,
+        type: 'follow',
+      });
+    } else {
+      notif = existingNotif;
+    }
+
+    // Format pesan
+    const count = notif.others_count || 0;
+    const message = count > 0 
+      ? `${request.user.nama} dan ${count} lainnya mulai mengikuti kamu.`
+      : `${request.user.nama} mulai mengikuti kamu.`;
 
     emitNotification(followingId, {
       id: notif._id,
       type: 'follow',
       sender_id: followerId,
-      message: `${request.user.nama} mulai mengikuti kamu.`,
+      message,
       created_at: notif.createdAt,
+      updatedAt: notif.updatedAt,
     });
 
     return reply.status(200).send({
