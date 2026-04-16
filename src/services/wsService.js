@@ -107,12 +107,13 @@ export function emitNotification(recipientId, notification) {
   });
 }
 
-export function emitStoryViewUpdate(authorId, storyId, viewsCount) {
+export function emitStoryViewUpdate(authorId, storyId, viewsCount, viewer = null) {
   sendToUser(authorId, {
     type: 'story_view_update',
     data: {
       story_id: storyId.toString(),
       views_count: viewsCount,
+      viewer: viewer, // Mengirim profil penonton baru (nama, nim, avatar)
     },
   });
 }

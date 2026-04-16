@@ -148,7 +148,16 @@ export async function viewStory(request, reply) {
     );
 
     // 3. Emit update real-time ke pemilik story
-    wsService.emitStoryViewUpdate(story.author_id, storyId, updatedStory.views_count);
+    // Kita kirim profil penonton saat ini agar FE bisa update list tanpa refresh
+    const viewerData = {
+      _id: request.user.id,
+      nim: request.user.nim,
+      nama: request.user.nama,
+      avatar_url: request.user.avatar_url,
+      program_studi: request.user.program_studi,
+      viewed_at: new Date()
+    };
+    wsService.emitStoryViewUpdate(story.author_id, storyId, updatedStory.views_count, viewerData);
   }
 
   return reply.send({ success: true });
