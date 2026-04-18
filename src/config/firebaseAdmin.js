@@ -20,16 +20,21 @@ try {
     try {
       let config = serviceAccountJson.trim();
 
+      // Terkadang platform membungkus variabel env dengan tanda kutip, kita buang dulu
+      if (config.startsWith('"') && config.endsWith('"')) {
+        config = config.substring(1, config.length - 1).trim();
+      }
+
       // JURUS AMPUH: Jika string tidak diawali '{', berarti ini Base64 (dari Railway)
       if (!config.startsWith('{')) {
-        console.log('[Firebase] Mendeteksi Base64, mencoba melakukan decoding...');
+        console.log('[Firebase] Mendeteksi Base64 (bukan JSON), mencoba melakukan decoding...');
         config = Buffer.from(config, 'base64').toString('utf8');
       }
 
       serviceAccount = JSON.parse(config);
       console.log('[Firebase] Menggunakan konfigurasi dari Environment Variable.');
     } catch (parseError) {
-      throw new Error(`Format JSON/Base64 di env tidak valid: ${parseError.message}`);
+      throw new Error(`Format JSON/Base64 di env tidak valid atau rusak: ${parseError.message}`);
     }
   } else if (serviceAccountPath) {
     // Metode A: Baca dari File (untuk Lokal)
