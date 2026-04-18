@@ -25,12 +25,14 @@ export async function deletePost(request, reply) {
   }
 
   // 2. Cascade Delete (Pembersihan Total di Database)
+  // Gunakan post._id (ObjectId) bukan id (string) agar query MongoDB match dengan benar
+  const postObjectId = post._id;
   try {
     await Promise.all([
-      Post.deleteOne({ _id: id }),           // Hapus Post
-      Comment.deleteMany({ post_id: id }),   // Hapus seluruh komentar post ini
-      Like.deleteMany({ post_id: id }),      // Hapus seluruh Like post ini
-      Notification.deleteMany({ post_id: id }) // Hapus notifikasi terkait post ini
+      Post.deleteOne({ _id: postObjectId }),              // Hapus Post
+      Comment.deleteMany({ post_id: postObjectId }),      // Hapus seluruh komentar post ini
+      Like.deleteMany({ post_id: postObjectId }),         // Hapus seluruh Like post ini
+      Notification.deleteMany({ post_id: postObjectId }) // Hapus notifikasi terkait post ini
     ]);
   } catch (error) {
     request.log.error(error);
