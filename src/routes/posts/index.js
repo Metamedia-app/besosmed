@@ -3,7 +3,7 @@ import { getFeed } from '../../controllers/posts/getFeed.js';
 import { getPost } from '../../controllers/posts/getPost.js';
 import { editPost } from '../../controllers/posts/editPost.js';
 import { deletePost } from '../../controllers/posts/deletePost.js';
-import { likePost } from '../../controllers/posts/likePost.js';
+import { likePost, getLikers } from '../../controllers/posts/likePost.js';
 import { addComment, getComments, getCommentTree } from '../../controllers/posts/commentPost.js';
 import { repostPost, sharePost, unrepostPost } from '../../controllers/posts/repostPost.js';
 
@@ -125,6 +125,26 @@ async function postRoutes(fastify) {
       security: [{ bearerAuth: [] }]
     },
     handler: likePost
+  });
+
+  // Get Likers (List who liked)
+  fastify.get('/posts/:id/likers', {
+    ...auth,
+    schema: { 
+      tags: ['Posts'], 
+      summary: 'Get Post Likers',
+      description: 'Mengambil daftar siapa saja yang menyukai postingan ini (Paginated).',
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      querystring: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer', default: 20 },
+          skip: { type: 'integer', default: 0 }
+        }
+      },
+      security: [{ bearerAuth: [] }]
+    },
+    handler: getLikers
   });
 
   // List Comments

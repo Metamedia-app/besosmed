@@ -52,13 +52,13 @@ export function broadcast(payload, excludeUserId = null) {
 
 // ── Event Helpers (Tetap sama agar Controller tidak error) ─────────────────────
 
-export function emitLikeUpdate(postId, likesCount, likedByUser) {
+export function emitLikeUpdate(postId, likesCount, liker = null) {
   broadcast({
     type: 'like_update',
     data: {
       post_id: postId.toString(),
       likes_count: likesCount,
-      liked_by: likedByUser,
+      viewer: liker, // Menggunakan 'viewer' agar konsisten dengan story_view_update di FE
     },
   });
 }
