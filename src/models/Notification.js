@@ -25,6 +25,15 @@ const notificationSchema = new mongoose.Schema(
     },
     is_read: { type: Boolean, default: false },
     others_count: { type: Number, default: 0 },
+    grouped_items: [
+      {
+        user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        nama: String,
+        avatar_url: String,
+        reference_id: mongoose.Schema.Types.ObjectId, // ID Komentar atau ID Like
+        at: { type: Date, default: Date.now }
+      }
+    ],
   },
   {
     timestamps: true, // Mengaktifkan createdAt dan updatedAt

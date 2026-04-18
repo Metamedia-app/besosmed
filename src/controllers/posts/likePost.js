@@ -23,7 +23,7 @@ export async function likePost(request, reply) {
     liked = false;
   } else {
     // Like
-    await Like.create({ user_id: userId, post_id: postId });
+    const newLike = await Like.create({ user_id: userId, post_id: postId });
     post.likes_count += 1;
     liked = true;
 
@@ -38,7 +38,19 @@ export async function likePost(request, reply) {
         },
         {
           $set: { sender_id: userId },
-          $inc: { others_count: 1 }
+          $inc: { others_count: 1 },
+          $push: { 
+            grouped_items: {
+              $each: [{
+                user_id: userId,
+                nama: request.user.nama,
+                avatar_url: request.user.avatar_url,
+                reference_id: newLike._id,
+                at: new Date()
+              }],
+              $slice: -5 // Simpan 5 interaksi terbaru agar payload tetap ringan
+            }
+          }
         },
         { new: true }
       );
@@ -51,6 +63,13 @@ export async function likePost(request, reply) {
           sender_id: userId,
           type: 'like',
           post_id: postId,
+          grouped_items: [{
+            user_id: userId,
+            nama: request.user.nama,
+            avatar_url: request.user.avatar_url,
+            reference_id: newLike._id,
+            at: new Date()
+          }]
         });
       } else {
         notif = existingNotif;
@@ -68,6 +87,7 @@ export async function likePost(request, reply) {
         sender_id: userId,
         post_id: postId,
         message,
+        grouped_items: notif.grouped_items, // Kirim detailnya biar FE bisa langsung pakai
         created_at: notif.createdAt,
         updatedAt: notif.updatedAt,
       });

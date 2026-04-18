@@ -94,7 +94,19 @@ export async function addComment(request, reply) {
         },
         {
           $set: { sender_id: userId },
-          $inc: { others_count: 1 }
+          $inc: { others_count: 1 },
+          $push: { 
+            grouped_items: {
+              $each: [{
+                user_id: userId,
+                nama: request.user.nama,
+                avatar_url: request.user.avatar_url,
+                reference_id: comment._id,
+                at: new Date()
+              }],
+              $slice: -5
+            }
+          }
         },
         { new: true }
       );
@@ -106,6 +118,13 @@ export async function addComment(request, reply) {
           sender_id: userId,
           type: 'comment',
           post_id: postId,
+          grouped_items: [{
+            user_id: userId,
+            nama: request.user.nama,
+            avatar_url: request.user.avatar_url,
+            reference_id: comment._id,
+            at: new Date()
+          }]
         });
       } else {
         notif = existingNotif;
@@ -123,6 +142,7 @@ export async function addComment(request, reply) {
         sender_id: userId,
         post_id: postId,
         message,
+        grouped_items: notif.grouped_items,
         created_at: notif.createdAt,
         updatedAt: notif.updatedAt,
       });
@@ -139,7 +159,19 @@ export async function addComment(request, reply) {
         },
         {
           $set: { sender_id: userId },
-          $inc: { others_count: 1 }
+          $inc: { others_count: 1 },
+          $push: { 
+            grouped_items: {
+              $each: [{
+                user_id: userId,
+                nama: request.user.nama,
+                avatar_url: request.user.avatar_url,
+                reference_id: comment._id,
+                at: new Date()
+              }],
+              $slice: -5
+            }
+          }
         },
         { new: true }
       );
@@ -151,6 +183,13 @@ export async function addComment(request, reply) {
           sender_id: userId,
           type: 'comment',
           post_id: postId,
+          grouped_items: [{
+            user_id: userId,
+            nama: request.user.nama,
+            avatar_url: request.user.avatar_url,
+            reference_id: comment._id,
+            at: new Date()
+          }]
         });
       } else {
         notif = existingNotif;
@@ -168,6 +207,7 @@ export async function addComment(request, reply) {
         sender_id: userId,
         post_id: postId,
         message,
+        grouped_items: notif.grouped_items,
         created_at: notif.createdAt,
         updatedAt: notif.updatedAt,
       });
