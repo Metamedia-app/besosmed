@@ -5,3 +5,6 @@ logs/
 *.log
 .DS_Store
 coverage/
+
+# Firebase Admin Key
+firebase-auth.json

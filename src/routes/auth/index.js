@@ -1,4 +1,5 @@
 import { login } from '../../controllers/auth/loginController.js';
+import { loginWithGoogle } from '../../controllers/auth/googleAuthController.js';
 
 // Schema validasi & dokumentasi Swagger
 const loginSchema = {
@@ -82,6 +83,23 @@ async function authRoutes(fastify) {
     },
     schema: loginSchema,
     handler: login,
+  });
+
+  // Login Google (Restricted)
+  fastify.post('/auth/google', {
+    schema: {
+      tags: ['Auth'],
+      summary: 'Login via Google (Restricted)',
+      description: 'Login menggunakan idToken dari Firebase. Hanya berhasil jika email Google sudah tertaut dengan NIM.',
+      body: {
+        type: 'object',
+        required: ['idToken'],
+        properties: {
+          idToken: { type: 'string', description: 'ID Token dari Firebase Client SDK' }
+        }
+      }
+    },
+    handler: loginWithGoogle
   });
 }
 

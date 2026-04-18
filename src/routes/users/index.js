@@ -1,4 +1,5 @@
 import { getMe, updateMe, uploadAvatar, deleteAvatar, changePassword, getUserProfile } from '../../controllers/users/profileController.js';
+import { linkGoogleAccount } from '../../controllers/auth/googleAuthController.js';
 import { followUser, unfollowUser, getFollowers, getFollowing } from '../../controllers/users/followController.js';
 import { searchUsers } from '../../controllers/users/searchUser.js';
 import { getUserPosts } from '../../controllers/posts/getUserPosts.js';
@@ -270,6 +271,25 @@ async function userRoutes(fastify) {
       },
     },
     handler: changePassword,
+  });
+
+  // ── POST /me/link-google ──────────────────────────────────────────────────────
+  fastify.post('/me/link-google', {
+    ...auth,
+    schema: {
+      tags: ['Profile'],
+      summary: 'Link Google Account',
+      description: 'Hubungkan akun Google (Gmail) ke NIM yang sedang login agar bisa login via Google nantinya.',
+      security: [{ bearerAuth: [] }],
+      body: {
+        type: 'object',
+        required: ['idToken'],
+        properties: {
+          idToken: { type: 'string', description: 'ID Token dari Firebase Client SDK' }
+        }
+      }
+    },
+    handler: linkGoogleAccount,
   });
 
   // ── FOLLOW SYSTEM (Tag: Follow) ───────────────────────────────────────────────

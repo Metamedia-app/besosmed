@@ -13,6 +13,13 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    email: {
+      type: String,
+      unique: true,
+      trim: true,
+      sparse: true, // agar tidak bentrok dengan user lama yang belum isi email
+      index: true,
+    },
     nama: {
       type: String,
       required: true,
