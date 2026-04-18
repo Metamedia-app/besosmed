@@ -59,6 +59,7 @@ export async function getNotifications(request, reply) {
         message,
         is_read: n.is_read,
         others_count: count,
+        grouped_items: n.grouped_items || [], // Detail interaksi per user (untuk Deep Linking)
         createdAt: n.createdAt,
         updatedAt: n.updatedAt,
       };
