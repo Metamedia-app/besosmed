@@ -1,10 +1,43 @@
+import { OAuth2Client } from 'google-auth-library';
 import admin from '../../config/firebaseAdmin.js';
 import User from '../../models/User.js';
 
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
 /**
- * Kontroler untuk sinkronisasi Akun Google (Firebase Auth)
- * dengan akun database BeSosmed kita.
+ * Helper untuk verifikasi token Google.
+ * Mencoba verifikasi menggunakan google-auth-library (Web Client ID) terlebih dahulu,
+ * jika gagal baru fallback ke Firebase Admin SDK.
  */
+async function verifyGoogleToken(token) {
+  try {
+    // 1. Coba verifikasi sebagai Google ID Token mentah (direkomendasikan FE)
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    return {
+      email: payload.email,
+      name: payload.name,
+      picture: payload.picture,
+      method: 'google-auth-library'
+    };
+  } catch (err) {
+    // 2. Jika gagal, coba verifikasi sebagai Firebase ID Token
+    try {
+      const decodedToken = await admin.auth().verifyIdToken(token);
+      return {
+        email: decodedToken.email,
+        name: decodedToken.name,
+        picture: decodedToken.picture || decodedToken.avatar_url,
+        method: 'firebase-admin'
+      };
+    } catch (fbError) {
+      throw new Error('Token tidak valid di Google maupun Firebase.');
+    }
+  }
+}
 
 /**
  * 1. Tautkan Akun Google (Wajib sudah login pake NIM)
@@ -12,16 +45,16 @@ import User from '../../models/User.js';
  */
 export async function linkGoogleAccount(request, reply) {
   const userId = request.user.id;
-  const { idToken } = request.body;
+  // Support baik idToken maupun token (sesuai saran FE)
+  const token = request.body.idToken || request.body.token;
 
-  if (!idToken) {
-    return reply.status(400).send({ success: false, message: 'idToken Google diperlukan.' });
+  if (!token) {
+    return reply.status(400).send({ success: false, message: 'Token Google diperlukan (idToken atau token).' });
   }
 
   try {
-    // Verifikasi idToken ke Firebase
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
-    const email = decodedToken.email;
+    const googleData = await verifyGoogleToken(token);
+    const email = googleData.email;
 
     if (!email) {
       return reply.status(400).send({ success: false, message: 'Token Google tidak memiliki email yang valid.' });
@@ -38,7 +71,7 @@ export async function linkGoogleAccount(request, reply) {
 
     return reply.send({
       success: true,
-      message: 'Akun Google berhasil tertaut dengan NIM Anda.',
+      message: `Akun Google berhasil tertaut (Verified via ${googleData.method}).`,
       data: { email }
     });
   } catch (error) {
@@ -52,16 +85,16 @@ export async function linkGoogleAccount(request, reply) {
  * POST /api/v1/auth/google
  */
 export async function loginWithGoogle(request, reply) {
-  const { idToken } = request.body;
+  const token = request.body.idToken || request.body.token;
 
-  if (!idToken) {
-    return reply.status(400).send({ success: false, message: 'idToken Google diperlukan.' });
+  if (!token) {
+    return reply.status(400).send({ success: false, message: 'Token Google diperlukan (idToken atau token).' });
   }
 
   try {
-    // 1. Verifikasi ke Firebase
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
-    const email = decodedToken.email;
+    // 1. Verifikasi (Dual Mode)
+    const googleData = await verifyGoogleToken(token);
+    const email = googleData.email;
 
     if (!email) {
       return reply.status(400).send({ success: false, message: 'Email tidak ditemukan di akun Google Anda.' });
@@ -71,7 +104,6 @@ export async function loginWithGoogle(request, reply) {
     const user = await User.findOne({ email }).lean();
 
     if (!user) {
-      // INI ADALAH RESTRIKSI: User ditolak jika belum tertaut
       return reply.status(403).send({
         success: false,
         message: 'Akun Google Anda belum tertaut dengan NIM mana pun. Silakan login menggunakan NIM & Password terlebih dahulu untuk menautkan akun.',
@@ -88,13 +120,13 @@ export async function loginWithGoogle(request, reply) {
       status_mahasiswa: user.status_mahasiswa,
     };
 
-    const token = await reply.jwtSign(payload);
+    const jwtToken = await reply.jwtSign(payload);
 
     return reply.status(200).send({
       success: true,
-      message: 'Login Google berhasil.',
+      message: `Login Google berhasil (Verified via ${googleData.method}).`,
       data: {
-        token,
+        token: jwtToken,
         user: {
           id: user._id,
           nim: user.nim,
