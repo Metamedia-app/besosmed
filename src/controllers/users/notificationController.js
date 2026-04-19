@@ -65,10 +65,17 @@ export async function getNotifications(request, reply) {
       };
     });
 
+    // Hitung total notifikasi yang belum dibaca (Realtime Badge)
+    const unreadCount = await Notification.countDocuments({ 
+      recipient_id: userId, 
+      is_read: false 
+    });
+
     return reply.send({
       success: true,
       data: {
         notifications: formattedNotifications,
+        unread_count: unreadCount
       },
     });
   } catch (error) {
@@ -96,7 +103,17 @@ export async function markAsRead(request, reply) {
       return reply.status(404).send({ success: false, message: 'Notifikasi tidak ditemukan.' });
     }
 
-    return reply.send({ success: true, message: 'Notifikasi ditandai sebagai dibaca.' });
+    // Hitung sisa notifikasi unread agar FE sinkron
+    const unreadCount = await Notification.countDocuments({ 
+      recipient_id: userId, 
+      is_read: false 
+    });
+
+    return reply.send({ 
+      success: true, 
+      message: 'Notifikasi ditandai sebagai dibaca.',
+      data: { unread_count: unreadCount }
+    });
   } catch (error) {
     return reply.status(500).send({ success: false, message: 'Gagal mengupdate notifikasi.' });
   }
@@ -115,7 +132,11 @@ export async function markAllAsRead(request, reply) {
       { is_read: true }
     );
 
-    return reply.send({ success: true, message: 'Semua notifikasi ditandai sebagai dibaca.' });
+    return reply.send({ 
+      success: true, 
+      message: 'Semua notifikasi ditandai sebagai dibaca.',
+      data: { unread_count: 0 }
+    });
   } catch (error) {
     return reply.status(500).send({ success: false, message: 'Gagal mengupdate notifikasi.' });
   }

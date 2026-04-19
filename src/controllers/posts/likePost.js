@@ -81,13 +81,20 @@ export async function likePost(request, reply) {
         ? `${request.user.nama} dan ${count} lainnya menyukai postinganmu.`
         : `${request.user.nama} menyukai postinganmu.`;
 
+      // Hitung total unread untuk recipient (Realtime Badge)
+      const unreadCount = await Notification.countDocuments({ 
+        recipient_id: post.author_id, 
+        is_read: false 
+      });
+
       emitNotification(post.author_id, {
         id: notif._id,
         type: 'like',
         sender_id: userId,
         post_id: postId,
         message,
-        grouped_items: notif.grouped_items, // Kirim detailnya biar FE bisa langsung pakai
+        grouped_items: notif.grouped_items,
+        unread_count: unreadCount, // Kirim angka badge terbaru
         created_at: notif.createdAt,
         updatedAt: notif.updatedAt,
       });

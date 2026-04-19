@@ -136,6 +136,12 @@ export async function addComment(request, reply) {
         ? `${request.user.nama} dan ${count} lainnya membalas komentarmu.`
         : `${request.user.nama} membalas komentarmu.`;
 
+      // Hitung total unread untuk recipient (Realtime Badge)
+      const unreadCount = await Notification.countDocuments({ 
+        recipient_id: parentComment.author_id, 
+        is_read: false 
+      });
+
       emitNotification(parentComment.author_id, {
         id: notif._id,
         type: 'comment',
@@ -143,6 +149,7 @@ export async function addComment(request, reply) {
         post_id: postId,
         message,
         grouped_items: notif.grouped_items,
+        unread_count: unreadCount, // Kirim angka badge terbaru
         created_at: notif.createdAt,
         updatedAt: notif.updatedAt,
       });
@@ -201,6 +208,12 @@ export async function addComment(request, reply) {
         ? `${request.user.nama} dan ${count} lainnya mengomentari postinganmu.`
         : `${request.user.nama} mengomentari postinganmu.`;
 
+      // Hitung total unread untuk recipient (Realtime Badge)
+      const unreadCount = await Notification.countDocuments({ 
+        recipient_id: post.author_id, 
+        is_read: false 
+      });
+
       emitNotification(post.author_id, {
         id: notif._id,
         type: 'comment',
@@ -208,6 +221,7 @@ export async function addComment(request, reply) {
         post_id: postId,
         message,
         grouped_items: notif.grouped_items,
+        unread_count: unreadCount, // Kirim angka badge terbaru
         created_at: notif.createdAt,
         updatedAt: notif.updatedAt,
       });

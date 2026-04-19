@@ -65,11 +65,18 @@ export async function followUser(request, reply) {
       ? `${request.user.nama} dan ${count} lainnya mulai mengikuti kamu.`
       : `${request.user.nama} mulai mengikuti kamu.`;
 
+    // Hitung total unread untuk recipient (Realtime Badge)
+    const unreadCount = await Notification.countDocuments({ 
+      recipient_id: followingId, 
+      is_read: false 
+    });
+
     emitNotification(followingId, {
       id: notif._id,
       type: 'follow',
       sender_id: followerId,
       message,
+      unread_count: unreadCount, // Kirim angka badge terbaru
       created_at: notif.createdAt,
       updatedAt: notif.updatedAt,
     });

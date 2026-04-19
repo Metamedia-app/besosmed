@@ -101,12 +101,19 @@ export async function repostPost(request, reply) {
       ? `${request.user.nama} dan ${count} lainnya memposting ulang postinganmu.`
       : `${request.user.nama} memposting ulang postinganmu.`;
 
+    // Hitung total unread untuk recipient (Realtime Badge)
+    const unreadCount = await Notification.countDocuments({ 
+      recipient_id: originalPost.author_id, 
+      is_read: false 
+    });
+
     emitNotification(originalPost.author_id, {
       id: notif._id,
       type: 'repost',
       sender_id: userId,
       post_id: originalPostId,
       message,
+      unread_count: unreadCount, // Kirim angka badge terbaru
       created_at: notif.createdAt,
       updatedAt: notif.updatedAt,
     });
