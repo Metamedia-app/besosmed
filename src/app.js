@@ -17,6 +17,7 @@ import postRoutes from './routes/posts/index.js';
 import storyRoutes from './routes/posts/storyRoutes.js';
 import userRoutes from './routes/users/index.js';
 import notificationRoutes from './routes/users/notificationRoutes.js';
+import adminRoutes from './routes/admin/index.js';
 
 export async function buildApp(opts = {}) {
   const app = Fastify({
@@ -47,6 +48,7 @@ export async function buildApp(opts = {}) {
   await app.register(storyRoutes, { prefix: '/api/v1' });
   await app.register(userRoutes, { prefix: '/api/v1' });
   await app.register(notificationRoutes, { prefix: '/api/v1' });
+  await app.register(adminRoutes, { prefix: '/api/v1/admin' });
 
   // ── Global Error Handler ───────────────────────────────
   app.setErrorHandler((error, request, reply) => {
