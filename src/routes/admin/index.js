@@ -10,6 +10,10 @@ import {
   searchUsersAdmin, 
   searchPostsAdmin 
 } from '../../controllers/admin/adminSearchController.js';
+import { 
+  getReportsAdmin, 
+  updateReportStatus 
+} from '../../controllers/admin/adminReportController.js';
 import { isAdmin } from '../../middlewares/adminMiddleware.js';
 
 export default async function adminRoutes(fastify) {
@@ -138,6 +142,42 @@ export default async function adminRoutes(fastify) {
         },
       },
       handler: searchPostsAdmin,
+    });
+
+    // List Reports (Admin)
+    adminGroup.get('/reports', {
+      schema: {
+        tags: ['Admin Dashboard'],
+        summary: 'Melihat daftar laporan masuk',
+        security: [{ bearerAuth: [] }],
+        querystring: {
+          type: 'object',
+          properties: {
+            status: { type: 'string', enum: ['pending', 'reviewed'], default: 'pending' },
+            limit: { type: 'integer' },
+            skip: { type: 'integer' },
+          },
+        },
+      },
+      handler: getReportsAdmin,
+    });
+
+    // Update Report Status
+    adminGroup.patch('/reports/:id/status', {
+      schema: {
+        tags: ['Admin Dashboard'],
+        summary: 'Update status laporan (Tandai sudah diperiksa)',
+        security: [{ bearerAuth: [] }],
+        params: { type: 'object', properties: { id: { type: 'string' } } },
+        body: {
+          type: 'object',
+          required: ['status'],
+          properties: {
+            status: { type: 'string', enum: ['pending', 'reviewed'] },
+          },
+        },
+      },
+      handler: updateReportStatus,
     });
   });
 }

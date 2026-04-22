@@ -6,6 +6,7 @@ import { deletePost } from '../../controllers/posts/deletePost.js';
 import { likePost, getLikers } from '../../controllers/posts/likePost.js';
 import { addComment, getComments, getCommentTree } from '../../controllers/posts/commentPost.js';
 import { repostPost, sharePost, unrepostPost } from '../../controllers/posts/repostPost.js';
+import { getReportReasons, reportPost } from '../../controllers/posts/reportController.js';
 
 async function postRoutes(fastify) {
   const auth = { onRequest: [fastify.authenticate] };
@@ -239,6 +240,37 @@ async function postRoutes(fastify) {
       security: [{ bearerAuth: [] }] 
     },
     handler: sharePost
+  });
+
+  // Get Report Reasons
+  fastify.get('/posts/report-reasons', {
+    schema: {
+      tags: ['Posts'],
+      summary: 'Get Report Reasons',
+      description: 'Mengambil daftar alasan yang didukung untuk melaporkan postingan.',
+    },
+    handler: getReportReasons
+  });
+
+  // Report Post
+  fastify.post('/posts/:id/report', {
+    ...auth,
+    schema: {
+      tags: ['Posts'],
+      summary: 'Report Post',
+      description: 'Melaporkan postingan yang melanggar pedoman komunitas.',
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      body: {
+        type: 'object',
+        required: ['reason_type'],
+        properties: {
+          reason_type: { type: 'string', description: 'Jenis pelanggaran dari list reasons' },
+          reason_text: { type: 'string', description: 'Detail tambahan (opsional)' },
+        }
+      },
+      security: [{ bearerAuth: [] }]
+    },
+    handler: reportPost
   });
 
 }
