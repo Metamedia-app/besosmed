@@ -3,22 +3,20 @@ import Post from '../../models/Post.js';
 
 /**
  * Mencari User (Semua status: aktif/banned)
+ * Jika q kosong, tampilkan semua user terbaru.
  */
 export async function searchUsersAdmin(request, reply) {
   const { q, limit = 20, skip = 0 } = request.query;
 
-  if (!q) {
-    return reply.send({ success: true, data: { users: [], total: 0 } });
-  }
-
-  const searchRegex = new RegExp(q, 'i');
-  const filter = {
-    $or: [
+  const filter = {};
+  if (q && q.trim().length > 0) {
+    const searchRegex = new RegExp(q.trim(), 'i');
+    filter.$or = [
       { nama: { $regex: searchRegex } },
       { nim: { $regex: searchRegex } },
       { program_studi: { $regex: searchRegex } }
-    ]
-  };
+    ];
+  }
 
   try {
     const [users, total] = await Promise.all([
@@ -35,22 +33,22 @@ export async function searchUsersAdmin(request, reply) {
       data: { users, total },
     });
   } catch (error) {
-    return reply.status(500).send({ success: false, message: 'Gagal mencari user.' });
+    return reply.status(500).send({ success: false, message: 'Gagal mengambil data user.' });
   }
 }
 
 /**
  * Mencari Postingan (Semua status: aktif/takedown)
+ * Jika q kosong, tampilkan semua postingan terbaru.
  */
 export async function searchPostsAdmin(request, reply) {
   const { q, limit = 20, skip = 0 } = request.query;
 
-  if (!q) {
-    return reply.send({ success: true, data: { posts: [], total: 0 } });
+  const filter = {};
+  if (q && q.trim().length > 0) {
+    const searchRegex = new RegExp(q.trim(), 'i');
+    filter.caption = { $regex: searchRegex };
   }
-
-  const searchRegex = new RegExp(q, 'i');
-  const filter = { caption: { $regex: searchRegex } };
 
   try {
     const [posts, total] = await Promise.all([
@@ -68,6 +66,6 @@ export async function searchPostsAdmin(request, reply) {
       data: { posts, total },
     });
   } catch (error) {
-    return reply.status(500).send({ success: false, message: 'Gagal mencari postingan.' });
+    return reply.status(500).send({ success: false, message: 'Gagal mengambil data postingan.' });
   }
 }
