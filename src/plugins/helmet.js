@@ -6,6 +6,8 @@ async function helmetPlugin(fastify) {
     global: true,
     // Allow Swagger UI to load properly
     contentSecurityPolicy: false,
+    // Allow cross-origin requests (penting untuk dashboard web)
+    crossOriginResourcePolicy: false,
   });
 }
 
