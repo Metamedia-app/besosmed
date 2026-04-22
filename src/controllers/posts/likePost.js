@@ -1,6 +1,7 @@
 import Like from '../../models/Like.js';
 import Post from '../../models/Post.js';
 import Notification from '../../models/Notification.js';
+import { countTotalUnreadItems } from '../../services/notificationService.js';
 import { emitLikeUpdate, emitNotification } from '../../services/wsService.js';
 
 export async function likePost(request, reply) {
@@ -82,10 +83,7 @@ export async function likePost(request, reply) {
         : `${request.user.nama} menyukai postinganmu.`;
 
       // Hitung total unread untuk recipient (Realtime Badge)
-      const unreadCount = await Notification.countDocuments({ 
-        recipient_id: post.author_id, 
-        is_read: false 
-      });
+      const unreadCount = await countTotalUnreadItems(post.author_id);
 
       emitNotification(post.author_id, {
         id: notif._id,

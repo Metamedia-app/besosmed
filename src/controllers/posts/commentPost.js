@@ -3,6 +3,7 @@ import Comment from '../../models/Comment.js';
 import Post from '../../models/Post.js';
 import Notification from '../../models/Notification.js';
 import User from '../../models/User.js';
+import { countTotalUnreadItems } from '../../services/notificationService.js';
 import { emitNewComment, emitNotification } from '../../services/wsService.js';
 
 export async function addComment(request, reply) {
@@ -137,10 +138,7 @@ export async function addComment(request, reply) {
         : `${request.user.nama} membalas komentarmu.`;
 
       // Hitung total unread untuk recipient (Realtime Badge)
-      const unreadCount = await Notification.countDocuments({ 
-        recipient_id: parentComment.author_id, 
-        is_read: false 
-      });
+      const unreadCount = await countTotalUnreadItems(parentComment.author_id);
 
       emitNotification(parentComment.author_id, {
         id: notif._id,
@@ -209,10 +207,7 @@ export async function addComment(request, reply) {
         : `${request.user.nama} mengomentari postinganmu.`;
 
       // Hitung total unread untuk recipient (Realtime Badge)
-      const unreadCount = await Notification.countDocuments({ 
-        recipient_id: post.author_id, 
-        is_read: false 
-      });
+      const unreadCount = await countTotalUnreadItems(post.author_id);
 
       emitNotification(post.author_id, {
         id: notif._id,

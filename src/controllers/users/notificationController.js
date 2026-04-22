@@ -1,4 +1,5 @@
 import Notification from '../../models/Notification.js';
+import { countTotalUnreadItems } from '../../services/notificationService.js';
 
 /**
  * GET /notifications
@@ -47,6 +48,9 @@ export async function getNotifications(request, reply) {
             ? `${senderNama} dan ${count} lainnya mulai mengikuti Anda.`
             : `${senderNama} mulai mengikuti Anda.`;
           break;
+        case 'takedown':
+          message = 'Postingan Anda di-takedown karena melanggar pedoman komunitas.';
+          break;
         default:
           message = 'Ada interaksi baru di akun Anda.';
       }
@@ -65,11 +69,8 @@ export async function getNotifications(request, reply) {
       };
     });
 
-    // Hitung total notifikasi yang belum dibaca (Realtime Badge)
-    const unreadCount = await Notification.countDocuments({ 
-      recipient_id: userId, 
-      is_read: false 
-    });
+    // Hitung total notifikasi yang belum dibaca (Total Seluruh Aksi)
+    const unreadCount = await countTotalUnreadItems(userId);
 
     return reply.send({
       success: true,
@@ -104,10 +105,7 @@ export async function markAsRead(request, reply) {
     }
 
     // Hitung sisa notifikasi unread agar FE sinkron
-    const unreadCount = await Notification.countDocuments({ 
-      recipient_id: userId, 
-      is_read: false 
-    });
+    const unreadCount = await countTotalUnreadItems(userId);
 
     return reply.send({ 
       success: true, 

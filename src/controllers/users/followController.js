@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import User from '../../models/User.js';
 import Follow from '../../models/Follow.js';
 import Notification from '../../models/Notification.js';
+import { countTotalUnreadItems } from '../../services/notificationService.js';
 import { emitNotification, emitFollowUpdate } from '../../services/wsService.js';
 
 /**
@@ -43,7 +44,18 @@ export async function followUser(request, reply) {
       },
       {
         $set: { sender_id: followerId },
-        $inc: { others_count: 1 }
+        $inc: { others_count: 1 },
+        $push: { 
+          grouped_items: {
+            $each: [{
+              user_id: followerId,
+              nama: request.user.nama,
+              avatar_url: request.user.avatar_url,
+              at: new Date()
+            }],
+            $slice: -5
+          }
+        }
       },
       { new: true }
     );
@@ -54,6 +66,12 @@ export async function followUser(request, reply) {
         recipient_id: followingId,
         sender_id: followerId,
         type: 'follow',
+        grouped_items: [{
+          user_id: followerId,
+          nama: request.user.nama,
+          avatar_url: request.user.avatar_url,
+          at: new Date()
+        }]
       });
     } else {
       notif = existingNotif;
@@ -66,10 +84,7 @@ export async function followUser(request, reply) {
       : `${request.user.nama} mulai mengikuti kamu.`;
 
     // Hitung total unread untuk recipient (Realtime Badge)
-    const unreadCount = await Notification.countDocuments({ 
-      recipient_id: followingId, 
-      is_read: false 
-    });
+    const unreadCount = await countTotalUnreadItems(followingId);
 
     emitNotification(followingId, {
       id: notif._id,

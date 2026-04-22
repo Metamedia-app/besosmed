@@ -1,5 +1,5 @@
-import Post from '../../models/Post.js';
 import Notification from '../../models/Notification.js';
+import { countTotalUnreadItems } from '../../services/notificationService.js';
 import { emitRepostUpdate, emitNotification, emitNewPost, emitShareUpdate } from '../../services/wsService.js';
 
 export async function repostPost(request, reply) {
@@ -78,7 +78,18 @@ export async function repostPost(request, reply) {
       },
       {
         $set: { sender_id: userId },
-        $inc: { others_count: 1 }
+        $inc: { others_count: 1 },
+        $push: { 
+          grouped_items: {
+            $each: [{
+              user_id: userId,
+              nama: request.user.nama,
+              avatar_url: request.user.avatar_url,
+              at: new Date()
+            }],
+            $slice: -5
+          }
+        }
       },
       { new: true }
     );
@@ -90,6 +101,12 @@ export async function repostPost(request, reply) {
         sender_id: userId,
         type: 'repost',
         post_id: originalPostId,
+        grouped_items: [{
+          user_id: userId,
+          nama: request.user.nama,
+          avatar_url: request.user.avatar_url,
+          at: new Date()
+        }]
       });
     } else {
       notif = existingNotif;
@@ -102,10 +119,7 @@ export async function repostPost(request, reply) {
       : `${request.user.nama} memposting ulang postinganmu.`;
 
     // Hitung total unread untuk recipient (Realtime Badge)
-    const unreadCount = await Notification.countDocuments({ 
-      recipient_id: originalPost.author_id, 
-      is_read: false 
-    });
+    const unreadCount = await countTotalUnreadItems(originalPost.author_id);
 
     emitNotification(originalPost.author_id, {
       id: notif._id,
