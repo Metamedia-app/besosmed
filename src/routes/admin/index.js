@@ -112,7 +112,6 @@ export default async function adminRoutes(fastify) {
         security: [{ bearerAuth: [] }],
         querystring: {
           type: 'object',
-          required: ['q'],
           properties: {
             q: { type: 'string' },
             limit: { type: 'integer' },
@@ -131,7 +130,6 @@ export default async function adminRoutes(fastify) {
         security: [{ bearerAuth: [] }],
         querystring: {
           type: 'object',
-          required: ['q'],
           properties: {
             q: { type: 'string' },
             limit: { type: 'integer' },
