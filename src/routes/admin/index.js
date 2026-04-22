@@ -153,7 +153,7 @@ export default async function adminRoutes(fastify) {
         querystring: {
           type: 'object',
           properties: {
-            status: { type: 'string', enum: ['pending', 'reviewed'], default: 'pending' },
+            status: { type: 'string', enum: ['pending', 'ignored', 'resolved', 'all'], default: 'pending' },
             limit: { type: 'integer' },
             skip: { type: 'integer' },
           },
@@ -173,7 +173,7 @@ export default async function adminRoutes(fastify) {
           type: 'object',
           required: ['status'],
           properties: {
-            status: { type: 'string', enum: ['pending', 'reviewed'] },
+            status: { type: 'string', enum: ['pending', 'ignored', 'resolved'] },
           },
         },
       },

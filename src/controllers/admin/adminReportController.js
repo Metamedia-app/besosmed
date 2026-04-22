@@ -7,8 +7,9 @@ export async function getReportsAdmin(request, reply) {
   const { limit = 20, skip = 0, status = 'pending' } = request.query;
 
   try {
+    const filter = status === 'all' ? {} : { status };
     const [reports, total] = await Promise.all([
-      Report.find({ status })
+      Report.find(filter)
         .sort({ createdAt: -1 })
         .skip(parseInt(skip))
         .limit(parseInt(limit))
@@ -37,8 +38,12 @@ export async function getReportsAdmin(request, reply) {
  */
 export async function updateReportStatus(request, reply) {
   const { id } = request.params;
-  const { status } = request.body; // 'pending' atau 'reviewed'
+  const { status } = request.body; // 'ignored' atau 'resolved'
   const adminId = request.user.id;
+
+  if (!['ignored', 'resolved', 'pending'].includes(status)) {
+    return reply.status(400).send({ success: false, message: 'Status tidak valid.' });
+  }
 
   try {
     const report = await Report.findByIdAndUpdate(
