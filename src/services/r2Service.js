@@ -23,6 +23,7 @@ const FOLDERS = {
   avatar: 'avatars',
   story_image: 'stories/images',
   story_video: 'stories/videos',
+  inbox: 'massage/inbox',
 };
 
 /**

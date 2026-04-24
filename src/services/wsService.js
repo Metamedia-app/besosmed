@@ -139,3 +139,32 @@ export function emitDeletePost(postId) {
     },
   });
 }
+
+// ── Chat Events ──────────────────────────────────────────────────────────────
+
+export function emitNewMessage(recipientId, message) {
+  sendToUser(recipientId, {
+    type: 'new_message',
+    data: message,
+  });
+}
+
+export function emitTypingStatus(recipientId, conversationId, isTyping) {
+  sendToUser(recipientId, {
+    type: 'typing_status',
+    data: {
+      conversation_id: conversationId.toString(),
+      is_typing: isTyping,
+    },
+  });
+}
+
+export function emitMessageRead(recipientId, conversationId, messageId) {
+  sendToUser(recipientId, {
+    type: 'message_read',
+    data: {
+      conversation_id: conversationId.toString(),
+      message_id: messageId.toString(),
+    },
+  });
+}
