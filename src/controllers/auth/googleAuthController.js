@@ -111,11 +111,20 @@ export async function loginWithGoogle(request, reply) {
       });
     }
 
-    // 3. Jika ketemu, buatkan JWT login BeSosmed
+    // 3. Cek apakah user sedang di-ban
+    if (user.is_banned) {
+      return reply.status(403).send({
+        success: false,
+        message: 'Mohon maaf, akun Anda telah di-ban. Silakan hubungi support untuk informasi lebih lanjut.',
+      });
+    }
+
+    // 4. Jika ketemu & tidak di-ban, buatkan JWT login BeSosmed
     const payload = {
       id: user._id.toString(),
       nim: user.nim,
       nama: user.nama,
+      role: user.role, // Tambahkan role ke payload
       program_studi: user.program_studi,
       status_mahasiswa: user.status_mahasiswa,
     };
