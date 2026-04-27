@@ -121,11 +121,22 @@ export async function banUser(request, reply) {
   const { id } = request.params;
 
   try {
-    const user = await User.findByIdAndUpdate(id, { is_banned: true }, { new: true });
+    const user = await User.findById(id);
 
     if (!user) {
       return reply.status(404).send({ success: false, message: 'User tidak ditemukan.' });
     }
+
+    // --- PROTEKSI ADMIN ---
+    if (user.role === 'admin') {
+      return reply.status(403).send({ 
+        success: false, 
+        message: 'Tidak diperbolehkan memblokir sesama akun Admin.' 
+      });
+    }
+
+    user.is_banned = true;
+    await user.save();
 
     return reply.send({
       success: true,
