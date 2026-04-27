@@ -98,20 +98,35 @@ export async function getMessages(request, reply) {
 export async function sendMessage(request, reply) {
   const senderId = request.user.id;
   
-  // Karena attachFieldsToBody: true, data ada di .value
-  // Tambahkan optional chaining (?.) agar tidak crash jika body kosong
-  const recipientId = request.body?.recipientId?.value;
-  const conversationId = request.body?.conversationId?.value;
-  const body = request.body?.body?.value || '';
-  
-  // Ambil files dengan lebih aman
-  let rawFiles = request.body?.files;
-  if (rawFiles && !Array.isArray(rawFiles)) {
-    rawFiles = [rawFiles];
-  }
-  const files = (rawFiles || []).filter(f => f && f.type === 'file');
+  let recipientId = '';
+  let conversationId = '';
+  let body = '';
+  const attachments = [];
 
   try {
+    // Parse multipart secara manual karena attachFieldsToBody dimatikan
+    const parts = request.parts();
+    for await (const part of parts) {
+      if (part.type === 'field') {
+        if (part.fieldname === 'recipientId') recipientId = part.value;
+        if (part.fieldname === 'conversationId') conversationId = part.value;
+        if (part.fieldname === 'body') body = part.value;
+      } else if (part.type === 'file') {
+        const chunks = [];
+        for await (const chunk of part.file) {
+          chunks.push(chunk);
+        }
+        const buffer = Buffer.concat(chunks);
+        const upload = await uploadFile(buffer, part.mimetype, 'inbox');
+        attachments.push({
+          url: upload.url,
+          type: upload.type,
+          name: part.filename,
+          size: buffer.length
+        });
+      }
+    }
+
     let convId = conversationId;
 
     if (!recipientId && !convId) {
@@ -132,19 +147,6 @@ export async function sendMessage(request, reply) {
         });
       }
       convId = conv._id;
-    }
-
-    // 2. Upload lampiran jika ada
-    const attachments = [];
-    for (const file of files) {
-      const fileBuffer = await file.toBuffer(); // Ambil buffer dari multipart
-      const upload = await uploadFile(fileBuffer, file.mimetype, 'inbox');
-      attachments.push({
-        url: upload.url,
-        type: upload.type,
-        name: file.filename,
-        size: fileBuffer.length
-      });
     }
 
     // 3. Enkripsi pesan teks
