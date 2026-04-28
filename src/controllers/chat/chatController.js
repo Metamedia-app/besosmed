@@ -2,7 +2,7 @@ import Conversation from '../../models/Conversation.js';
 import Message from '../../models/Message.js';
 import User from '../../models/User.js';
 import { encryptMessage, decryptMessage, encryptBuffer, decryptBuffer } from '../../services/encryptionService.js';
-import { uploadFile } from '../../services/r2Service.js';
+import { uploadFile, r2Client, GetObjectCommand } from '../../services/r2Service.js';
 import { emitNewMessage, emitTypingStatus } from '../../services/wsService.js';
 
 /**
@@ -319,11 +319,13 @@ export async function getMedia(request, reply) {
   const key = `massage/${folder}/${filename}`;
 
   try {
-    // Ambil plugin r2 dari fastify instance
-    const { Body, ContentType } = await this.r2.send(new this.GetObjectCommand({
+    // 1. Ambil data terenkripsi dari R2 menggunakan Client yang sudah diekspor
+    const command = new GetObjectCommand({
       Bucket: process.env.R2_BUCKET_NAME,
       Key: key,
-    }));
+    });
+
+    const { Body, ContentType } = await r2Client.send(command);
 
     if (!Body) {
       return reply.status(404).send({ success: false, message: 'File tidak ditemukan.' });
