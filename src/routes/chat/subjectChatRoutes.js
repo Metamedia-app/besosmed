@@ -6,6 +6,7 @@ import {
   deleteGroupMessage,
   setGroupTypingStatus
 } from '../../controllers/chat/subjectChatController.js';
+import { getMedia } from '../../controllers/chat/chatController.js';
 
 export default async function subjectChatRoutes(fastify) {
   // Semua rute di sini butuh login
@@ -97,4 +98,20 @@ export default async function subjectChatRoutes(fastify) {
       security: [{ bearerAuth: [] }]
     }
   }, setGroupTypingStatus);
+
+  fastify.get('/media/:folder/:filename', {
+    schema: {
+      tags: ['Chat Matkul'],
+      summary: 'Proxy Dekripsi Media (Foto/Video) - Chat Matkul',
+      description: 'Mengambil media terenkripsi dari R2, mendekripsinya, dan menyajikannya sebagai file asli.',
+      params: {
+        type: 'object',
+        properties: {
+          folder: { type: 'string' },
+          filename: { type: 'string' }
+        }
+      },
+      security: [{ bearerAuth: [] }]
+    }
+  }, getMedia);
 }
