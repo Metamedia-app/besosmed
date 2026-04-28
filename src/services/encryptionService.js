@@ -38,3 +38,33 @@ export function decryptMessage(text) {
     return '[Gagal mendekripsi pesan]';
   }
 }
+
+/**
+ * Enkripsi data biner (Buffer)
+ * @param {Buffer} buffer 
+ * @returns {Buffer} iv + encryptedData (gabungan biner)
+ */
+export function encryptBuffer(buffer) {
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
+  const encrypted = Buffer.concat([cipher.update(buffer), cipher.final()]);
+  // Gabungkan IV di awal buffer agar bisa dibaca saat dekripsi
+  return Buffer.concat([iv, encrypted]);
+}
+
+/**
+ * Dekripsi data biner (Buffer)
+ * @param {Buffer} buffer 
+ * @returns {Buffer} data asli
+ */
+export function decryptBuffer(buffer) {
+  try {
+    const iv = buffer.subarray(0, IV_LENGTH);
+    const encryptedData = buffer.subarray(IV_LENGTH);
+    const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
+    return Buffer.concat([decipher.update(encryptedData), decipher.final()]);
+  } catch (error) {
+    console.error('Buffer decryption failed:', error.message);
+    throw error;
+  }
+}

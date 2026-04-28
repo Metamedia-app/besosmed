@@ -4,7 +4,8 @@ import {
   sendMessage, 
   setTypingStatus, 
   deleteMessage, 
-  clearConversation 
+  clearConversation,
+  getMedia
 } from '../../controllers/chat/chatController.js';
 
 export default async function chatRoutes(fastify) {
@@ -98,5 +99,21 @@ export default async function chatRoutes(fastify) {
         security: [{ bearerAuth: [] }]
       }
     }, clearConversation);
+
+    // Proxy Media (Dekripsi Gambar/Video)
+    protectedRoutes.get('/media/:folder/:filename', {
+      schema: {
+        tags: ['Chat Inbox'],
+        summary: 'Ambil dan dekripsi file media chat',
+        params: { 
+          type: 'object', 
+          properties: { 
+            folder: { type: 'string' },
+            filename: { type: 'string' }
+          } 
+        },
+        security: [{ bearerAuth: [] }]
+      }
+    }, getMedia);
   });
 }

@@ -1,7 +1,7 @@
 import Conversation from '../../models/Conversation.js';
 import Message from '../../models/Message.js';
 import User from '../../models/User.js';
-import { encryptMessage, decryptMessage } from '../../services/encryptionService.js';
+import { encryptMessage, decryptMessage, encryptBuffer, decryptBuffer } from '../../services/encryptionService.js';
 import { uploadFile } from '../../services/r2Service.js';
 import { emitNewMessage, emitTypingStatus } from '../../services/wsService.js';
 
@@ -117,12 +117,22 @@ export async function sendMessage(request, reply) {
           chunks.push(chunk);
         }
         const buffer = Buffer.concat(chunks);
-        const upload = await uploadFile(buffer, part.mimetype, 'inbox');
+        
+        // --- ENKRIPSI BINER SEBELUM UPLOAD ---
+        const encryptedBuffer = encryptBuffer(buffer);
+        
+        const upload = await uploadFile(encryptedBuffer, part.mimetype, 'inbox');
+        
+        // Simpan URL Proxy (Backend) bukan URL R2 langsung
+        const baseUrl = process.env.APP_URL || `http://${request.hostname}`;
+        const proxyUrl = `${baseUrl}/api/v1/chat/media/inbox/${upload.key.split('/').pop()}`;
+
         attachments.push({
-          url: upload.url,
+          url: proxyUrl,
           type: upload.type,
           name: part.filename,
-          size: buffer.length
+          size: buffer.length,
+          key: upload.key // Simpan key asli untuk kebutuhan internal
         });
       }
     }
@@ -297,5 +307,46 @@ export async function clearConversation(request, reply) {
   } catch (error) {
     request.log.error(error);
     return reply.status(500).send({ success: false, message: 'Gagal membersihkan obrolan.' });
+  }
+}
+
+/**
+ * Proxy Media: Ambil dari R2 -> Dekripsi -> Kirim ke User
+ * URL: /api/v1/chat/media/:folder/:filename
+ */
+export async function getMedia(request, reply) {
+  const { folder, filename } = request.params;
+  const key = `massage/${folder}/${filename}`;
+
+  try {
+    // Ambil plugin r2 dari fastify instance
+    const { Body, ContentType } = await this.r2.send(new this.GetObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME,
+      Key: key,
+    }));
+
+    if (!Body) {
+      return reply.status(404).send({ success: false, message: 'File tidak ditemukan.' });
+    }
+
+    // Convert stream ke buffer
+    const chunks = [];
+    for await (const chunk of Body) {
+      chunks.push(chunk);
+    }
+    const encryptedBuffer = Buffer.concat(chunks);
+
+    // 2. Dekripsi Buffer
+    const decryptedBuffer = decryptBuffer(encryptedBuffer);
+
+    // 3. Kirim ke user dengan tipe konten yang sesuai
+    return reply
+      .type(ContentType)
+      .header('Cache-Control', 'public, max-age=86400') // Cache 24 jam agar BE tidak berat
+      .send(decryptedBuffer);
+
+  } catch (error) {
+    request.log.error(error);
+    return reply.status(500).send({ success: false, message: 'Gagal memuat media.' });
   }
 }
