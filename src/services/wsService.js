@@ -34,6 +34,12 @@ export function sendToUser(userId, payload) {
   io.to(`user:${userId.toString()}`).emit(payload.type, payload.data || payload);
 }
 
+// ── Send ke Chat Room (Semua peserta di room tersebut) ────────────────────────
+export function sendToChatRoom(conversationId, payload) {
+  if (!io) return;
+  io.to(`chat:${conversationId.toString()}`).emit(payload.type, payload.data || payload);
+}
+
 // ── Broadcast ke Semua User ───────────────────────────────────────────────────
 
 export function broadcast(payload, excludeUserId = null) {
@@ -154,6 +160,25 @@ export function emitTypingStatus(recipientId, conversationId, isTyping) {
     type: 'typing_status',
     data: {
       conversation_id: conversationId.toString(),
+      is_typing: isTyping,
+    },
+  });
+}
+
+// Tambahan khusus Grup
+export function emitGroupMessage(conversationId, message) {
+  sendToChatRoom(conversationId, {
+    type: 'new_message',
+    data: message,
+  });
+}
+
+export function emitGroupTypingStatus(conversationId, senderId, isTyping) {
+  sendToChatRoom(conversationId, {
+    type: 'typing_status',
+    data: {
+      conversation_id: conversationId.toString(),
+      sender_id: senderId.toString(),
       is_typing: isTyping,
     },
   });

@@ -1,6 +1,7 @@
 import fp from 'fastify-plugin';
 import fastifySocketIO from '@wick_studio/fastify-socket.io';
 import { setIO } from '../services/wsService.js';
+import Conversation from '../models/Conversation.js';
 
 async function socketioPlugin(fastify) {
   await fastify.register(fastifySocketIO, {
@@ -44,6 +45,22 @@ async function socketioPlugin(fastify) {
 
       // Masuk ke Room pribadi (untuk notifikasi targeted)
       socket.join(`user:${userId}`);
+
+      // Masuk ke Room Percakapan (Inbox & Group)
+      // Ini supaya broadcast pesan grup lebih efisien
+      // Masuk ke Room Percakapan (Inbox & Group) secara asinkron
+      if (userId) {
+        Conversation.find({ participants: userId }).select('_id').lean()
+          .then(userConvs => {
+            userConvs.forEach(c => {
+              socket.join(`chat:${c._id.toString()}`);
+            });
+            console.log(`[Socket.io] User ${userNama} joined ${userConvs.length} chat rooms.`);
+          })
+          .catch(err => {
+            console.error('[Socket.io] Error joining rooms:', err.message);
+          });
+      }
 
       socket.on('disconnect', (reason) => {
         console.log(`[Socket.io] User disconnected: ${userNama} (${userId}) - Reason: ${reason}`);

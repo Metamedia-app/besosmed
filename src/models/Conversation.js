@@ -31,6 +31,19 @@ const conversationSchema = new mongoose.Schema(
       enum: ['inbox', 'group', 'community'],
       default: 'inbox',
     },
+    // Khusus untuk Group / Community
+    name: {
+      type: String,
+      trim: true,
+    },
+    avatar_url: {
+      type: String,
+      default: '',
+    },
+    subject_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Subject',
+    },
   },
   {
     timestamps: true,

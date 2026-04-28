@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
 import config from '../config/index.js';
@@ -27,6 +27,7 @@ const FOLDERS = {
   story_image: 'stories/images',
   story_video: 'stories/videos',
   inbox: 'massage/inbox',
+  group: 'massage/grub',
 };
 
 /**
@@ -74,17 +75,6 @@ export async function uploadFile(fileBuffer, mimetype, folder = 'image') {
   return { key, url, type };
 }
 
-/**
- * Hapus file dari Cloudflare R2 berdasarkan key
- * @param {string} key - R2 object key (misal: posts/images/uuid.jpg)
- */
-export async function deleteFile(key) {
-  const command = new DeleteObjectCommand({
-    Bucket: config.r2.bucketName,
-    Key: key,
-  });
-  await r2Client.send(command);
-}
 
 /**
  * Generate presigned URL untuk akses private (opsional, untuk file protected)
@@ -120,5 +110,26 @@ export async function testR2Connection() {
     return true;
   } catch (err) {
     throw new Error(`R2 connection failed: ${err.message}`);
+  }
+}
+
+/**
+ * Menghapus file dari R2 berdasarkan Key
+ */
+export async function deleteFile(key) {
+  if (!key) return;
+  
+  try {
+    const command = new DeleteObjectCommand({
+      Bucket: config.r2.bucketName,
+      Key: key,
+    });
+    
+    await r2Client.send(command);
+    console.log(`[R2] File deleted: ${key}`);
+    return true;
+  } catch (err) {
+    console.error(`[R2] Error deleting file ${key}:`, err.message);
+    throw err;
   }
 }

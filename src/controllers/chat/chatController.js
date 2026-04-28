@@ -2,7 +2,7 @@ import Conversation from '../../models/Conversation.js';
 import Message from '../../models/Message.js';
 import User from '../../models/User.js';
 import { encryptMessage, decryptMessage, encryptBuffer, decryptBuffer } from '../../services/encryptionService.js';
-import { uploadFile, r2Client, GetObjectCommand } from '../../services/r2Service.js';
+import { uploadFile, r2Client, GetObjectCommand, deleteFile } from '../../services/r2Service.js';
 import { emitNewMessage, emitTypingStatus } from '../../services/wsService.js';
 
 /**
@@ -243,6 +243,19 @@ export async function deleteMessage(request, reply) {
         return reply.status(403).send({ success: false, message: 'Hanya pengirim yang bisa menarik pesan.' });
       }
       
+      // --- HAPUS FILE DARI R2 JIKA ADA ATTACHMENTS ---
+      if (message.attachments && message.attachments.length > 0) {
+        for (const attachment of message.attachments) {
+          if (attachment.key) {
+            try {
+              await deleteFile(attachment.key);
+            } catch (err) {
+              request.log.error(`Gagal hapus file R2: ${attachment.key}`);
+            }
+          }
+        }
+      }
+
       // HARD DELETE dari MongoDB
       await Message.deleteOne({ _id: messageId });
 

@@ -11,9 +11,10 @@ async function swaggerPlugin(fastify) {
         description: 'API documentation for BeSosmed — Social Media Backend',
         version: '1.0.0',
       },
-      servers: process.env.APP_URL 
-        ? [{ url: process.env.APP_URL, description: 'Current Environment' }]
-        : [],
+      servers: [
+        ...(process.env.APP_URL ? [{ url: process.env.APP_URL, description: 'Production (Railway)' }] : []),
+        { url: 'http://localhost:3000', description: 'Local Development' },
+      ],
       tags: [
         { name: 'Auth', description: 'Autentikasi — Login & Token' },
         { name: 'Profile', description: 'Profil — Data diri, Bio, dan Avatar' },
@@ -21,6 +22,7 @@ async function swaggerPlugin(fastify) {
         { name: 'Realtime', description: 'WebSocket — Koneksi real-time' },
         { name: 'Admin Dashboard', description: 'Khusus Admin — Moderasi, Takedown, dan Banning' },
         { name: 'Chat Inbox', description: 'Pesan Pribadi (Inbox) — Enkripsi, Media, dan Realtime' },
+        { name: 'Chat Matkul', description: 'Grup Mata Kuliah — Otomatisasi Member, Enkripsi, dan Realtime' },
       ],
       components: {
         securitySchemes: {

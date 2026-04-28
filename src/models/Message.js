@@ -25,6 +25,7 @@ const messageSchema = new mongoose.Schema(
         type: { type: String, enum: ['image', 'video', 'file'] },
         name: String,
         size: Number,
+        key: String,
       },
     ],
     // Fitur: Hapus buat saya (Delete for Me)
