@@ -135,7 +135,7 @@ export async function getMySubjectGroups(request, reply) {
     .lean();
 
     const formatted = await Promise.all(groups.map(async g => {
-      const userClearedAt = g.cleared_at?.get(userId) || new Date(0);
+      const userClearedAt = g.cleared_at?.[userId] || new Date(0);
       
       let finalLastMessage = g.last_message;
 

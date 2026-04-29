@@ -19,22 +19,22 @@ export async function getConversations(request, reply) {
       .populate('participants', 'nama nim avatar_url')
       .populate({
         path: 'last_message',
-        select: 'body sender_id createdAt is_deleted_for_everyone',
+        select: 'body sender_id createdAt is_deleted_for_everyone deleted_by',
       })
       .lean();
 
     const formatted = await Promise.all(conversations.map(async c => {
       // Hilangkan diri sendiri dari daftar partisipan untuk tampilan FE
       const otherUser = c.participants.find(p => p._id.toString() !== userId);
-      const userClearedAt = c.cleared_at?.get(userId) || new Date(0);
+      const userClearedAt = c.cleared_at?.[userId] || new Date(0);
       
       let finalLastMessage = c.last_message;
 
       // CEK: Apakah pesan terakhir valid untuk user ini?
       // (Bukan ditarik, tidak dihapus 'for me', dan dikirim SETELAH clear chat)
       const isInvalid = !finalLastMessage || 
-                        finalLastMessage.deleted_by.includes(userId) || 
-                        finalLastMessage.createdAt < userClearedAt;
+                        (finalLastMessage.deleted_by && finalLastMessage.deleted_by.includes(userId)) || 
+                        (finalLastMessage.createdAt && finalLastMessage.createdAt < userClearedAt);
 
       if (isInvalid) {
         // Cari pesan terakhir yang BENAR-BENAR valid untuk user ini
@@ -64,6 +64,7 @@ export async function getConversations(request, reply) {
 
     return reply.send({ success: true, data: formatted });
   } catch (error) {
+    console.error('INBOX_ERROR_DETAIL:', error);
     request.log.error(error);
     return reply.status(500).send({ success: false, message: 'Gagal mengambil daftar pesan.' });
   }
