@@ -15,25 +15,19 @@ export default async function subjectChatRoutes(fastify) {
   // --- ADMIN ONLY ---
   fastify.post('/sync', {
     schema: {
-      tags: ['Chat Matkul'],
-      summary: 'Admin: Sinkronisasi data mahasiswa & grup matkul via JSON',
+      tags: ['Admin Dashboard'],
+      summary: 'Admin: Sinkronisasi daftar mahasiswa ke grup matkul (Batch)',
       body: {
         type: 'object',
-        required: ['subjects_data'],
+        required: ['subject_name', 'subject_code', 'students'],
         properties: {
-          subjects_data: {
-            type: 'array',
-            items: {
-              type: 'object',
-              required: ['nim', 'name', 'subject_name', 'subject_code'],
-              properties: {
-                nim: { type: 'string' },
-                name: { type: 'string' },
-                subject_name: { type: 'string' },
-                subject_code: { type: 'string' },
-                academic_year: { type: 'string' }
-              }
-            }
+          subject_name: { type: 'string' },
+          subject_code: { type: 'string' },
+          academic_year: { type: 'string' },
+          expires_at: { type: 'string', description: 'Tanggal kadaluarsa grup (Format: YYYY-MM-DD)' },
+          students: { 
+            type: 'array', 
+            items: { type: 'string' }
           }
         }
       },
@@ -54,10 +48,20 @@ export default async function subjectChatRoutes(fastify) {
     schema: {
       tags: ['Chat Matkul'],
       summary: 'Mengirim pesan ke grup matkul (Teks & Media)',
-      description: 'Gunakan multipart/form-data untuk mengirim file. Jika hanya teks, cukup isi field body.',
-      // Hapus body validation agar tidak bentrok dengan manual parsing di controller
+      description: 'Gunakan form-data untuk mengirim file dan teks sekaligus.',
+      body: {
+        type: 'object',
+        properties: {
+          conversationId: { type: 'string', description: 'ID Grup Chat' },
+          content: { type: 'string', description: 'Pesan teks (opsional jika ada file)' },
+          file: { type: 'string', format: 'binary', description: 'Lampiran foto/video/file' }
+        }
+      },
+      consumes: ['multipart/form-data'],
       security: [{ bearerAuth: [] }]
-    }
+    },
+    // Bypass validasi body agar tidak bentrok dengan multipart parsing di controller
+    validatorCompiler: () => () => true
   }, sendGroupMessage);
 
   fastify.get('/messages/:conversationId', {

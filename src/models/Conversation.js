@@ -44,6 +44,10 @@ const conversationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Subject',
     },
+    // Fitur: Auto-delete (TTL)
+    expiresAt: {
+      type: Date
+    }
   },
   {
     timestamps: true,
@@ -53,6 +57,9 @@ const conversationSchema = new mongoose.Schema(
 
 // Pastikan pencarian pasangan participants cepat
 conversationSchema.index({ participants: 1 });
+
+// Index TTL: MongoDB akan otomatis menghapus dokumen saat mencapai waktu expiresAt
+conversationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const Conversation = mongoose.model('Conversation', conversationSchema);
 export default Conversation;

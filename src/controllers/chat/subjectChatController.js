@@ -19,70 +19,95 @@ export async function syncSubjectChat(request, reply) {
     });
   }
 
-  const { subjects_data } = request.body; // Array of { nim, name, subject_name, subject_code, academic_year }
+  const { 
+    subject_name, 
+    subject_code, 
+    academic_year, 
+    students, 
+    duration_minutes,
+    expires_at // Format baru: YYYY-MM-DD
+  } = request.body; 
 
-  if (!subjects_data || !Array.isArray(subjects_data)) {
-    return reply.status(400).send({ success: false, message: 'Format data JSON tidak valid.' });
+  if (!subject_code || !subject_name || !students || !Array.isArray(students)) {
+    return reply.status(400).send({ success: false, message: 'Data mata kuliah atau daftar mahasiswa tidak lengkap.' });
   }
 
-  const results = {
-    created_subjects: 0,
-    enrolled_students: 0,
-    errors: []
-  };
+  // Hitung waktu kadaluarsa
+  let expiresAt = null;
+  
+  if (expires_at) {
+    // Jika admin input tanggal (misal: 2024-12-31)
+    expiresAt = new Date(expires_at);
+    // Set ke akhir hari (23:59:59) agar adil
+    expiresAt.setHours(23, 59, 59, 999);
+  } else if (duration_minutes) {
+    // Fallback ke durasi menit (untuk testing)
+    expiresAt = new Date(Date.now() + parseInt(duration_minutes) * 60000);
+  }
 
-  for (const item of subjects_data) {
-    try {
-      // 1. Cari atau Buat Mata Kuliah
-      let subject = await Subject.findOne({ code: item.subject_code });
-      
-      if (!subject) {
-        subject = await Subject.create({
-          code: item.subject_code,
-          name: item.subject_name,
-          academic_year: item.academic_year || '2023/2024'
-        });
-        results.created_subjects++;
-      }
-
-      // 2. Cari atau Buat Percakapan (Group) untuk MK ini
-      let conv = await Conversation.findOne({ subject_id: subject._id, type: 'group' });
-      
-      if (!conv) {
-        conv = await Conversation.create({
-          type: 'group',
-          name: subject.name,
-          subject_id: subject._id,
-          participants: []
-        });
-        // Update referensi balik di Subject
-        subject.conversation_id = conv._id;
-        await subject.save();
-      }
-
-      // 3. Cari Mahasiswa berdasarkan NIM
-      const student = await User.findOne({ nim: item.nim });
-      
-      if (student) {
-        // Tambahkan mahasiswa ke grup jika belum ada
-        await Conversation.findByIdAndUpdate(conv._id, {
-          $addToSet: { participants: student._id }
-        });
-        results.enrolled_students++;
-      } else {
-        results.errors.push(`NIM ${item.nim} (${item.name}) tidak ditemukan di database.`);
-      }
-
-    } catch (err) {
-      results.errors.push(`Gagal memproses ${item.nim}: ${err.message}`);
+  try {
+    // 1. Cari atau Buat Mata Kuliah
+    let subject = await Subject.findOne({ code: subject_code });
+    
+    if (!subject) {
+      subject = await Subject.create({
+        code: subject_code,
+        name: subject_name,
+        academic_year: academic_year || '2023/2024'
+      });
     }
-  }
 
-  return reply.send({
-    success: true,
-    message: 'Sinkronisasi berhasil diselesaikan.',
-    data: results
-  });
+    // 2. Cari atau Buat Percakapan (Group) untuk MK ini
+    let conv = await Conversation.findOne({ subject_id: subject._id, type: 'group' });
+    
+    if (!conv) {
+      conv = await Conversation.create({
+        type: 'group',
+        name: subject.name,
+        subject_id: subject._id,
+        participants: [],
+        expiresAt: expiresAt // Set waktu mati otomatis
+      });
+      // Update referensi balik di Subject
+      subject.conversation_id = conv._id;
+      await subject.save();
+    } else if (expiresAt) {
+      // Jika sudah ada tapi admin mengirim durasi baru, update waktunya
+      conv.expiresAt = expiresAt;
+      await conv.save();
+      
+      // Update juga SEMUA pesan lama di grup ini agar ikut mati bareng
+      await Message.updateMany(
+        { conversation_id: conv._id },
+        { $set: { expiresAt: expiresAt } }
+      );
+    }
+
+    // 3. Cari Mahasiswa berdasarkan Daftar NIM (Batch)
+    const foundStudents = await User.find({ nim: { $in: students } }).select('_id');
+    const studentIds = foundStudents.map(s => s._id);
+
+    if (studentIds.length > 0) {
+      // Tambahkan seluruh mahasiswa ke grup (hindari duplikat dengan $addToSet)
+      await Conversation.findByIdAndUpdate(conv._id, {
+        $addToSet: { participants: { $each: studentIds } }
+      });
+    }
+
+    return reply.send({
+      success: true,
+      message: `Berhasil menambahkan ${studentIds.length} mahasiswa ke grup ${subject_name}.`,
+      data: {
+        subject_id: subject._id,
+        enrolled_count: studentIds.length,
+        skipped_count: students.length - studentIds.length
+      }
+    });
+
+  } catch (err) {
+    request.log.error(err);
+    return reply.status(500).send({ success: false, message: `Gagal memproses sinkronisasi: ${err.message}` });
+  }
 }
 
 /**
@@ -94,7 +119,12 @@ export async function getMySubjectGroups(request, reply) {
   try {
     const groups = await Conversation.find({
       participants: userId,
-      type: 'group'
+      type: 'group',
+      $or: [
+        { expiresAt: null },
+        { expiresAt: { $exists: false } },
+        { expiresAt: { $gt: new Date() } }
+      ]
     })
     .populate('subject_id', 'code name academic_year')
     .sort({ updatedAt: -1 })
@@ -106,7 +136,9 @@ export async function getMySubjectGroups(request, reply) {
       subject_info: g.subject_id,
       avatar_url: g.avatar_url,
       unread_count: g.unread_counts?.[userId] || 0,
-      last_message_at: g.updatedAt
+      last_message_at: g.updatedAt,
+      expires_at: g.expiresAt,
+      is_temporary: !!g.expiresAt
     }));
 
     return reply.send({ success: true, data: formatted });
@@ -131,7 +163,7 @@ export async function sendGroupMessage(request, reply) {
     for await (const part of parts) {
       if (part.type === 'field') {
         if (part.fieldname === 'conversationId') conversationId = part.value;
-        if (part.fieldname === 'body') body = part.value;
+        if (part.fieldname === 'body' || part.fieldname === 'content') body = part.value;
       } else if (part.type === 'file') {
         const chunks = [];
         for await (const chunk of part.file) {
@@ -158,6 +190,9 @@ export async function sendGroupMessage(request, reply) {
       return reply.status(400).send({ success: false, message: 'ConversationId grup diperlukan.' });
     }
 
+    // Ambil info grup untuk mendapatkan waktu kadaluarsa (jika ada)
+    const conversationInfo = await Conversation.findById(conversationId).select('expiresAt');
+
     // Enkripsi pesan teks
     const encryptedBody = encryptMessage(body);
 
@@ -165,7 +200,8 @@ export async function sendGroupMessage(request, reply) {
       conversation_id: conversationId,
       sender_id: senderId,
       body: encryptedBody,
-      attachments
+      attachments,
+      expiresAt: conversationInfo?.expiresAt // Wariskan waktu mati dari grup
     });
 
     // Update percakapan: last_message & unread counts untuk SEMUA peserta kecuali pengirim

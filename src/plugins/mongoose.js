@@ -9,23 +9,23 @@ async function mongoosePlugin(fastify) {
   }
 
   try {
+    mongoose.set('strictQuery', false);
     await mongoose.connect(config.mongoUri);
     fastify.log.info('✅ MongoDB connected successfully');
 
-    // Make mongoose accessible via fastify.mongoose
     fastify.decorate('mongoose', mongoose);
 
-    // Graceful shutdown
     fastify.addHook('onClose', async () => {
       await mongoose.connection.close();
       fastify.log.info('MongoDB connection closed');
     });
   } catch (err) {
     fastify.log.error(`❌ MongoDB connection failed: ${err.message}`);
-    throw err;
+    process.exit(1); // Exit if DB connection fails
   }
 }
 
 export default fp(mongoosePlugin, {
   name: 'mongoose',
+  timeout: 30000, // Naikkan ke 30 detik agar lebih aman
 });

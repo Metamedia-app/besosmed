@@ -44,6 +44,10 @@ const messageSchema = new mongoose.Schema(
     is_read: {
       type: Boolean,
       default: false,
+    },
+    // Fitur: Auto-delete (TTL) — Mewarisi waktu dari Conversation
+    expiresAt: {
+      type: Date
     }
   },
   {
@@ -51,6 +55,9 @@ const messageSchema = new mongoose.Schema(
     collection: 'messages',
   }
 );
+
+// Index TTL: MongoDB akan otomatis menghapus pesan saat mencapai waktu expiresAt
+messageSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 // Index untuk performa penarikan chat sejarah
 messageSchema.index({ conversation_id: 1, createdAt: -1 });
