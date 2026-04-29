@@ -127,18 +127,51 @@ export async function getMySubjectGroups(request, reply) {
       ]
     })
     .populate('subject_id', 'code name academic_year')
+    .populate({
+      path: 'last_message',
+      select: 'body sender_id createdAt is_deleted_for_everyone deleted_by',
+    })
     .sort({ updatedAt: -1 })
     .lean();
 
-    const formatted = groups.map(g => ({
-      _id: g._id,
-      name: g.name,
-      subject_info: g.subject_id,
-      avatar_url: g.avatar_url,
-      unread_count: g.unread_counts?.[userId] || 0,
-      last_message_at: g.updatedAt,
-      expires_at: g.expiresAt,
-      is_temporary: !!g.expiresAt
+    const formatted = await Promise.all(groups.map(async g => {
+      const userClearedAt = g.cleared_at?.get(userId) || new Date(0);
+      
+      let finalLastMessage = g.last_message;
+
+      // CEK: Apakah pesan terakhir valid untuk user ini?
+      const isInvalid = !finalLastMessage || 
+                        (finalLastMessage.deleted_by && finalLastMessage.deleted_by.includes(userId)) || 
+                        finalLastMessage.createdAt < userClearedAt;
+
+      if (isInvalid) {
+        // Cari pesan terakhir yang BENAR-BENAR valid untuk user ini di grup ini
+        finalLastMessage = await Message.findOne({
+          conversation_id: g._id,
+          deleted_by: { $ne: userId },
+          createdAt: { $gt: userClearedAt }
+        }).sort({ createdAt: -1 });
+      }
+
+      // Dekripsi pesan terakhir untuk preview
+      let lastMessagePreview = '';
+      if (finalLastMessage) {
+        lastMessagePreview = finalLastMessage.is_deleted_for_everyone 
+          ? 'Pesan telah ditarik' 
+          : decryptMessage(finalLastMessage.body);
+      }
+
+      return {
+        _id: g._id,
+        name: g.name,
+        subject_info: g.subject_id,
+        avatar_url: g.avatar_url,
+        unread_count: g.unread_counts?.[userId] || 0,
+        last_message: lastMessagePreview,
+        last_message_at: finalLastMessage ? finalLastMessage.createdAt : g.updatedAt,
+        expires_at: g.expiresAt,
+        is_temporary: !!g.expiresAt
+      };
     }));
 
     return reply.send({ success: true, data: formatted });

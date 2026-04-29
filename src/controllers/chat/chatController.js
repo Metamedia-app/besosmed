@@ -23,26 +23,44 @@ export async function getConversations(request, reply) {
       })
       .lean();
 
-    const formatted = conversations.map(c => {
+    const formatted = await Promise.all(conversations.map(async c => {
       // Hilangkan diri sendiri dari daftar partisipan untuk tampilan FE
       const otherUser = c.participants.find(p => p._id.toString() !== userId);
+      const userClearedAt = c.cleared_at?.get(userId) || new Date(0);
       
+      let finalLastMessage = c.last_message;
+
+      // CEK: Apakah pesan terakhir valid untuk user ini?
+      // (Bukan ditarik, tidak dihapus 'for me', dan dikirim SETELAH clear chat)
+      const isInvalid = !finalLastMessage || 
+                        finalLastMessage.deleted_by.includes(userId) || 
+                        finalLastMessage.createdAt < userClearedAt;
+
+      if (isInvalid) {
+        // Cari pesan terakhir yang BENAR-BENAR valid untuk user ini
+        finalLastMessage = await Message.findOne({
+          conversation_id: c._id,
+          deleted_by: { $ne: userId },
+          createdAt: { $gt: userClearedAt }
+        }).sort({ createdAt: -1 });
+      }
+
       // Dekripsi pesan terakhir untuk preview
       let lastMessagePreview = '';
-      if (c.last_message) {
-        lastMessagePreview = c.last_message.is_deleted_for_everyone 
+      if (finalLastMessage) {
+        lastMessagePreview = finalLastMessage.is_deleted_for_everyone 
           ? 'Pesan telah ditarik' 
-          : decryptMessage(c.last_message.body);
+          : decryptMessage(finalLastMessage.body);
       }
 
       return {
         _id: c._id,
         user: otherUser,
         last_message: lastMessagePreview,
-        last_message_at: c.updatedAt,
+        last_message_at: finalLastMessage ? finalLastMessage.createdAt : c.updatedAt,
         unread_count: c.unread_counts?.[userId] || 0,
       };
-    });
+    }));
 
     return reply.send({ success: true, data: formatted });
   } catch (error) {
@@ -272,6 +290,21 @@ export async function deleteMessage(request, reply) {
       if (!message.deleted_by.includes(userId)) {
         message.deleted_by.push(userId);
         await message.save();
+
+        // LOGIKA BARU: Jika yang dihapus "for me" adalah pesan terakhir, 
+        // kita harus update preview 'last_message' agar user tidak melihat "pesan hantu"
+        const conv = await Conversation.findById(message.conversation_id);
+        if (conv.last_message && conv.last_message.toString() === messageId) {
+          // Cari pesan terakhir yang TIDAK ada di list deleted_by user ini
+          const prevVisibleMessage = await Message.findOne({ 
+            conversation_id: message.conversation_id,
+            deleted_by: { $ne: userId }
+          }).sort({ createdAt: -1 });
+
+          // Note: Kita tidak bisa update field 'last_message' secara global karena akan berefek ke user lain.
+          // Jadi kita biarkan 'last_message' di DB tetap, TAPI saat GET Conversations (list inbox), 
+          // kita akan buat logic untuk mencari pesan yang valid buat user tersebut.
+        }
       }
     }
 
