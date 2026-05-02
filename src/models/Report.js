@@ -24,6 +24,7 @@ const reportSchema = new mongoose.Schema(
         'Perundungan (Bullying) atau Pelecehan',
         'Informasi Salah (Hoax)',
         'Kekerasan atau Konten Berbahaya',
+        'Sistem: Terdeteksi Kata Kasar',
         'Lainnya'
       ],
     },
@@ -51,8 +52,8 @@ const reportSchema = new mongoose.Schema(
   }
 );
 
-// Satu user hanya bisa lapor satu postingan satu kali (mencegah spam laporan dari orang yang sama)
-reportSchema.index({ reporter_id: 1, post_id: 1 }, { unique: true });
+// Mengizinkan banyak laporan untuk satu postingan (Mencegah error saat auto-report sistem)
+reportSchema.index({ reporter_id: 1, post_id: 1 });
 
 const Report = mongoose.model('Report', reportSchema);
 export default Report;

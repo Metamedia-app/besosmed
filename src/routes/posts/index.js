@@ -4,7 +4,7 @@ import { getPost } from '../../controllers/posts/getPost.js';
 import { editPost } from '../../controllers/posts/editPost.js';
 import { deletePost } from '../../controllers/posts/deletePost.js';
 import { likePost, getLikers } from '../../controllers/posts/likePost.js';
-import { addComment, getComments, getCommentTree } from '../../controllers/posts/commentPost.js';
+import { addComment, getComments, getCommentTree, deleteComment } from '../../controllers/posts/commentPost.js';
 import { repostPost, sharePost, unrepostPost } from '../../controllers/posts/repostPost.js';
 import { getReportReasons, reportPost } from '../../controllers/posts/reportController.js';
 
@@ -203,6 +203,25 @@ async function postRoutes(fastify) {
       security: [{ bearerAuth: [] }]
     },
     handler: addComment
+  });
+
+  // Delete Comment
+  fastify.delete('/posts/:id/comments/:commentId', {
+    ...auth,
+    schema: { 
+      tags: ['Posts'], 
+      summary: 'Delete Comment',
+      description: 'Menghapus komentar (Hanya oleh pemilik komentar).',
+      params: { 
+        type: 'object', 
+        properties: { 
+          id: { type: 'string', description: 'Post ID' },
+          commentId: { type: 'string', description: 'Comment ID' } 
+        } 
+      },
+      security: [{ bearerAuth: [] }]
+    },
+    handler: deleteComment
   });
 
   // Repost

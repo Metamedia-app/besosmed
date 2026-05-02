@@ -2,7 +2,9 @@ import {
   getAllSubjects, 
   createSubject, 
   addMembersToGroup,
-  getAllGroups
+  getAllGroups,
+  getGroupMembers,
+  removeMemberFromGroup
 } from '../../controllers/admin/adminSubjectController.js';
 
 export default async function adminSubjectRoutes(fastify) {
@@ -53,6 +55,34 @@ export default async function adminSubjectRoutes(fastify) {
       security: [{ bearerAuth: [] }]
     }
   }, getAllGroups);
+
+  // Detail & Hapus Member Grup
+  fastify.get('/groups/:conversationId/members', {
+    schema: {
+      tags: ['Admin Dashboard'],
+      summary: 'Admin: Lihat daftar detail mahasiswa dalam satu grup',
+      params: {
+        type: 'object',
+        properties: { conversationId: { type: 'string' } }
+      },
+      security: [{ bearerAuth: [] }]
+    }
+  }, getGroupMembers);
+
+  fastify.delete('/groups/:conversationId/members/:userId', {
+    schema: {
+      tags: ['Admin Dashboard'],
+      summary: 'Admin: Keluarkan satu mahasiswa dari grup',
+      params: {
+        type: 'object',
+        properties: { 
+          conversationId: { type: 'string' },
+          userId: { type: 'string' }
+        }
+      },
+      security: [{ bearerAuth: [] }]
+    }
+  }, removeMemberFromGroup);
 
   // Manajemen Member Grup
   fastify.post('/groups/:conversationId/members', {

@@ -100,3 +100,47 @@ export async function getAllGroups(request, reply) {
     return reply.status(500).send({ success: false, message: 'Gagal mengambil daftar grup.' });
   }
 }
+
+/**
+ * Mendapatkan daftar detail Member dalam satu Grup
+ */
+export async function getGroupMembers(request, reply) {
+  const { conversationId } = request.params;
+
+  try {
+    const group = await Conversation.findById(conversationId)
+      .populate('participants', 'nama nim avatar_url program_studi')
+      .lean();
+
+    if (!group || group.type !== 'group') {
+      return reply.status(404).send({ success: false, message: 'Grup chat tidak ditemukan.' });
+    }
+
+    return reply.send({ success: true, data: group.participants });
+  } catch (error) {
+    return reply.status(500).send({ success: false, message: 'Gagal mengambil daftar member.' });
+  }
+}
+
+/**
+ * Menghapus satu Member dari Grup secara spesifik
+ */
+export async function removeMemberFromGroup(request, reply) {
+  const { conversationId, userId } = request.params;
+
+  try {
+    const group = await Conversation.findById(conversationId);
+    if (!group || group.type !== 'group') {
+      return reply.status(404).send({ success: false, message: 'Grup chat tidak ditemukan.' });
+    }
+
+    // Hapus userId dari array participants
+    await Conversation.findByIdAndUpdate(conversationId, {
+      $pull: { participants: userId }
+    });
+
+    return reply.send({ success: true, message: 'Member berhasil dikeluarkan dari grup.' });
+  } catch (error) {
+    return reply.status(500).send({ success: false, message: 'Gagal mengeluarkan member.' });
+  }
+}

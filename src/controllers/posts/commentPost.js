@@ -1,10 +1,12 @@
 import mongoose from 'mongoose';
 import Comment from '../../models/Comment.js';
 import Post from '../../models/Post.js';
+import Report from '../../models/Report.js';
 import Notification from '../../models/Notification.js';
 import User from '../../models/User.js';
-import { countTotalUnreadItems } from '../../services/notificationService.js';
-import { emitNewComment, emitNotification } from '../../services/wsService.js';
+import { countTotalUnreadItems, sendPushNotification } from '../../services/notificationService.js';
+import { emitNewComment, emitNotification, sendToUser } from '../../services/wsService.js';
+import { containsToxicWords } from '../../utils/badWords.js';
 
 export async function addComment(request, reply) {
   const userId = request.user.id;
@@ -56,6 +58,33 @@ export async function addComment(request, reply) {
     top_level_id: topLevelId,
     parent_ids: parentIds,
   });
+
+  // 0. --- ALARM TOXIC UNTUK ADMIN (WEB DASHBOARD) ---
+  if (containsToxicWords(body)) {
+    console.warn(`🚨 TOXIC_DETECTED: User ${request.user.nama} mengirim kata kasar: "${body}"`);
+    
+    // Auto-Save ke Tabel Laporan agar Admin bisa cek nanti di /admin/reports
+    await Report.create({
+      reporter_id: userId, // User yang berbuat toxic dilaporkan oleh sistem
+      post_id: postId,
+      reason_type: 'Sistem: Terdeteksi Kata Kasar',
+      reason_text: `Komentar otomatis ditandai: "${body}"`
+    }).catch(err => console.error('Gagal simpan auto-report:', err));
+
+    // Cari semua admin
+    const admins = await User.find({ role: 'admin' }).select('_id');
+    
+    admins.forEach(admin => {
+      sendToUser(admin._id, {
+        type: 'admin_notification',
+        data: {
+          title: '🤬 Komentar Toxic!',
+          message: `${request.user.nama} mengirim komentar kasar.`,
+          comment: comment
+        }
+      });
+    });
+  }
 
   // 1. Update total komentar di postingan (Atomic)
   await Post.updateOne({ _id: postId }, { $inc: { comments_count: 1 } });
@@ -318,4 +347,55 @@ export async function getCommentTree(request, reply) {
       total_replies: rootComment.replies_count
     }
   });
+}
+
+/**
+ * MENGHAPUS KOMENTAR (Hanya oleh pemilik komentar)
+ */
+export async function deleteComment(request, reply) {
+  const userId = request.user.id;
+  const { id: postId, commentId } = request.params;
+
+  try {
+    // 1. Cari komentar
+    const comment = await Comment.findOne({ _id: commentId, post_id: postId, is_deleted: false });
+    
+    if (!comment) {
+      return reply.status(404).send({ success: false, message: 'Komentar tidak ditemukan.' });
+    }
+
+    // 2. Verifikasi Pemilik (Sesuai permintaan Mas Edy: Cuma yang komen yang bisa hapus)
+    if (comment.author_id.toString() !== userId) {
+      return reply.status(403).send({ success: false, message: 'Akses ditolak. Anda bukan pemilik komentar ini.' });
+    }
+
+    // 3. Soft Delete
+    comment.is_deleted = true;
+    await comment.save();
+
+    // 4. --- UPDATE STATISTIK (DIBALIKKAN DARI LOGIC ADD) ---
+    
+    // Kurangi total komentar di postingan
+    await Post.updateOne({ _id: postId }, { $inc: { comments_count: -1 } });
+
+    // Kurangi replies_count di SEMUA leluhur (Recursive)
+    if (comment.parent_ids && comment.parent_ids.length > 0) {
+      await Comment.updateMany(
+        { _id: { $in: comment.parent_ids } },
+        { $inc: { replies_count: -1 } }
+      );
+    }
+
+    // 5. Broadcast ke Socket.io (Opsional tapi bagus buat UX)
+    // Mas bisa buat fungsi emitDeleteComment di wsService nanti kalau mau real-time
+    
+    return reply.send({ 
+      success: true, 
+      message: 'Komentar berhasil dihapus.',
+      data: { comment_id: commentId, post_id: postId }
+    });
+
+  } catch (error) {
+    return reply.status(500).send({ success: false, message: 'Gagal menghapus komentar.' });
+  }
 }
