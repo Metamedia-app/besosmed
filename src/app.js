@@ -20,6 +20,7 @@ import notificationRoutes from './routes/users/notificationRoutes.js';
 import adminRoutes from './routes/admin/index.js';
 import adminSubjectRoutes from './routes/admin/adminSubjectRoutes.js';
 import chatRoutes from './routes/chat/index.js';
+import communityChatRoutes from './routes/chat/communityChatRoutes.js';
 import subjectChatRoutes from './routes/chat/subjectChatRoutes.js';
 
 export async function buildApp(opts = {}) {
@@ -54,6 +55,7 @@ export async function buildApp(opts = {}) {
   await app.register(adminRoutes, { prefix: '/api/v1/admin' });
   await app.register(adminSubjectRoutes, { prefix: '/api/v1/admin' });
   await app.register(chatRoutes, { prefix: '/api/v1/chat' });
+  await app.register(communityChatRoutes, { prefix: '/api/v1/chat' });
   await app.register(subjectChatRoutes, { prefix: '/api/v1/chat-matkul' });
 
   // ── Global Error Handler ───────────────────────────────

@@ -28,6 +28,7 @@ const FOLDERS = {
   story_video: 'stories/videos',
   inbox: 'massage/inbox',
   group: 'massage/grub',
+  community: 'massage/community',
 };
 
 /**

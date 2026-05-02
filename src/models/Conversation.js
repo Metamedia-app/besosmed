@@ -44,6 +44,21 @@ const conversationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Subject',
     },
+    // Khusus Community (Admin Management)
+    creator_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    admins: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
+    description: {
+      type: String,
+      default: '',
+    },
     // Fitur: Auto-delete (TTL)
     expiresAt: {
       type: Date
