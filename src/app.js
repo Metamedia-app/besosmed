@@ -18,6 +18,8 @@ import storyRoutes from './routes/posts/storyRoutes.js';
 import userRoutes from './routes/users/index.js';
 import notificationRoutes from './routes/users/notificationRoutes.js';
 import adminRoutes from './routes/admin/index.js';
+import adminUserRoutes from './routes/admin/adminUserRoutes.js';
+import adminMajorRoutes from './routes/admin/adminMajorRoutes.js';
 import adminSubjectRoutes from './routes/admin/adminSubjectRoutes.js';
 import chatRoutes from './routes/chat/index.js';
 import communityChatRoutes from './routes/chat/communityChatRoutes.js';
@@ -53,6 +55,8 @@ export async function buildApp(opts = {}) {
   await app.register(userRoutes, { prefix: '/api/v1' });
   await app.register(notificationRoutes, { prefix: '/api/v1' });
   await app.register(adminRoutes, { prefix: '/api/v1/admin' });
+  await app.register(adminUserRoutes, { prefix: '/api/v1/admin' });
+  await app.register(adminMajorRoutes, { prefix: '/api/v1/admin' });
   await app.register(adminSubjectRoutes, { prefix: '/api/v1/admin' });
   await app.register(chatRoutes, { prefix: '/api/v1/chat' });
   await app.register(communityChatRoutes, { prefix: '/api/v1/chat' });
