@@ -21,8 +21,9 @@ async function adminUserRoutes(fastify) {
           nama: { type: 'string', description: 'Nama lengkap' },
           email: { type: 'string', description: 'Email (opsional)' },
           password: { type: 'string', description: 'Password akun' },
-          role: { type: 'string', enum: ['user', 'admin'], default: 'user', description: 'Role akun' },
-          program_studi: { type: 'string', description: 'Program studi (untuk mahasiswa)' }
+          role: { type: 'string', enum: ['user', 'admin', 'dosen'], default: 'user', description: 'Role akun' },
+          program_studi: { type: 'string', description: 'Program studi (untuk mahasiswa)' },
+          status_mahasiswa: { type: 'string', enum: ['AKTIF', 'TIDAK AKTIF', 'ALUMNI'], default: 'AKTIF', description: 'Status mahasiswa' }
         }
       },
       response: {

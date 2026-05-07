@@ -24,6 +24,7 @@ export default async function subjectChatRoutes(fastify) {
           subject_name: { type: 'string' },
           subject_code: { type: 'string' },
           academic_year: { type: 'string' },
+          lecturer_nim: { type: 'string', description: 'NIM Dosen pengampu' },
           expires_at: { type: 'string', description: 'Tanggal kadaluarsa grup (Format: YYYY-MM-DD)' },
           students: { 
             type: 'array', 

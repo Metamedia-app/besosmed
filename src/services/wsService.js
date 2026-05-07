@@ -189,7 +189,35 @@ export function emitMessageRead(recipientId, conversationId, messageId) {
     type: 'message_read',
     data: {
       conversation_id: conversationId.toString(),
-      message_id: messageId.toString(),
+    },
+  });
+}
+
+/**
+ * Kirim pengingat tugas ke grup matkul
+ */
+export function emitAssignmentReminder(conversationId, assignment, message) {
+  sendToChatRoom(conversationId, {
+    type: 'assignment_reminder',
+    data: {
+      assignment_id: assignment._id.toString(),
+      title: assignment.title,
+      due_date: assignment.due_date,
+      message: message || `Pengingat: Tugas "${assignment.title}" akan segera berakhir!`
+    },
+  });
+}
+
+/**
+ * Beritahu seluruh peserta grup bahwa status mute berubah
+ */
+export function emitMuteStatus(conversationId, isMuted) {
+  sendToChatRoom(conversationId, {
+    type: 'mute_status_update',
+    data: {
+      conversation_id: conversationId.toString(),
+      is_muted: isMuted,
+      message: isMuted ? 'Grup ini telah dibisukan oleh Dosen.' : 'Grup ini sekarang sudah bisa mengirim pesan.'
     },
   });
 }

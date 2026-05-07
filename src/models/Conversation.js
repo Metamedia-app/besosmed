@@ -62,6 +62,11 @@ const conversationSchema = new mongoose.Schema(
     // Fitur: Auto-delete (TTL)
     expiresAt: {
       type: Date
+    },
+    // Fitur Moderasi Kelas
+    is_muted: {
+      type: Boolean,
+      default: false,
     }
   },
   {

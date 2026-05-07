@@ -23,6 +23,7 @@ export async function syncSubjectChat(request, reply) {
     subject_name, 
     subject_code, 
     academic_year, 
+    lecturer_nim,
     students, 
     duration_minutes,
     expires_at // Format baru: YYYY-MM-DD
@@ -49,12 +50,24 @@ export async function syncSubjectChat(request, reply) {
     // 1. Cari atau Buat Mata Kuliah
     let subject = await Subject.findOne({ code: subject_code });
     
+    // Cari ID Dosen jika ada lecturer_nim
+    let lecturerId = null;
+    if (lecturer_nim) {
+      const lecturer = await User.findOne({ nim: lecturer_nim, role: 'dosen' });
+      if (lecturer) lecturerId = lecturer._id;
+    }
+
     if (!subject) {
       subject = await Subject.create({
         code: subject_code,
         name: subject_name,
-        academic_year: academic_year || '2023/2024'
+        academic_year: academic_year || '2023/2024',
+        lecturer_id: lecturerId
       });
+    } else if (lecturerId) {
+      // Update dosen jika ada perubahan
+      subject.lecturer_id = lecturerId;
+      await subject.save();
     }
 
     // 2. Cari atau Buat Percakapan (Group) untuk MK ini
@@ -65,8 +78,8 @@ export async function syncSubjectChat(request, reply) {
         type: 'group',
         name: subject.name,
         subject_id: subject._id,
-        participants: [],
-        expiresAt: expiresAt // Set waktu mati otomatis
+        participants: lecturerId ? [lecturerId] : [], // Masukkan dosen di awal jika ada
+        expiresAt: expiresAt 
       });
       // Update referensi balik di Subject
       subject.conversation_id = conv._id;
@@ -87,10 +100,11 @@ export async function syncSubjectChat(request, reply) {
     const foundStudents = await User.find({ nim: { $in: students } }).select('_id');
     const studentIds = foundStudents.map(s => s._id);
 
-    if (studentIds.length > 0) {
-      // Tambahkan seluruh mahasiswa ke grup (hindari duplikat dengan $addToSet)
+    if (studentIds.length > 0 || lecturerId) {
+      const finalParticipants = lecturerId ? [...studentIds, lecturerId] : studentIds;
+      // Tambahkan seluruh mahasiswa & dosen ke grup (hindari duplikat dengan $addToSet)
       await Conversation.findByIdAndUpdate(conv._id, {
-        $addToSet: { participants: { $each: studentIds } }
+        $addToSet: { participants: { $each: finalParticipants } }
       });
     }
 
@@ -224,7 +238,18 @@ export async function sendGroupMessage(request, reply) {
     }
 
     // Ambil info grup untuk mendapatkan waktu kadaluarsa (jika ada)
-    const conversationInfo = await Conversation.findById(conversationId).select('expiresAt');
+    const conversationInfo = await Conversation.findById(conversationId).select('expiresAt is_muted');
+
+    // --- PROTEKSI MUTE GRUP MATKUL ---
+    if (conversationInfo && conversationInfo.is_muted) {
+      const userRole = request.user.role;
+      if (userRole !== 'admin' && userRole !== 'dosen') {
+        return reply.status(403).send({
+          success: false,
+          message: 'Grup Mata Kuliah sedang di-mute oleh Dosen. Anda tidak dapat mengirim pesan saat ini.'
+        });
+      }
+    }
 
     // Enkripsi pesan teks
     const encryptedBody = encryptMessage(body);

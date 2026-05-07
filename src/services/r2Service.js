@@ -29,6 +29,8 @@ const FOLDERS = {
   inbox: 'massage/inbox',
   group: 'massage/grub',
   community: 'massage/community',
+  syllabus: 'massage/syllabus',
+  assignment: 'massage/assignment',
 };
 
 /**
@@ -45,8 +47,15 @@ function getExtension(mimetype) {
     'video/quicktime': 'mov',
     'video/x-msvideo': 'avi',
     'video/webm': 'webm',
+    'application/pdf': 'pdf',
+    'application/vnd.ms-powerpoint': 'ppt',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+    'application/msword': 'doc',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+    'application/vnd.ms-excel': 'xls',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
   };
-  return map[mimetype] || 'bin';
+  return map[mimetype] || mimetype.split('/')[1] || 'bin';
 }
 
 /**

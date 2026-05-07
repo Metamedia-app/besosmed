@@ -5,7 +5,7 @@ import User from '../../models/User.js';
  * Membuat User atau Admin baru (Hanya Admin)
  */
 export async function createUser(request, reply) {
-  const { nim, nama, email, password, role, program_studi } = request.body;
+  const { nim, nama, email, password, role, program_studi, status_mahasiswa } = request.body;
 
   try {
     // 1. Cek apakah NIM sudah terdaftar
@@ -40,6 +40,7 @@ export async function createUser(request, reply) {
       password: hashedPassword,
       role: role || 'user',
       program_studi: program_studi || '',
+      status_mahasiswa: status_mahasiswa || 'AKTIF',
     });
 
     // Hilangkan password dari response

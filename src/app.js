@@ -24,6 +24,8 @@ import adminSubjectRoutes from './routes/admin/adminSubjectRoutes.js';
 import chatRoutes from './routes/chat/index.js';
 import communityChatRoutes from './routes/chat/communityChatRoutes.js';
 import subjectChatRoutes from './routes/chat/subjectChatRoutes.js';
+import subjectFeatureRoutes from './routes/chat/subjectFeatureRoutes.js';
+import { startReminderService } from './services/reminderService.js';
 
 export async function buildApp(opts = {}) {
   const app = Fastify({
@@ -61,6 +63,7 @@ export async function buildApp(opts = {}) {
   await app.register(chatRoutes, { prefix: '/api/v1/chat' });
   await app.register(communityChatRoutes, { prefix: '/api/v1/chat' });
   await app.register(subjectChatRoutes, { prefix: '/api/v1/chat-matkul' });
+  await app.register(subjectFeatureRoutes, { prefix: '/api/v1/chat' });
 
   // ── Global Error Handler ───────────────────────────────
   app.setErrorHandler((error, request, reply) => {
@@ -73,6 +76,9 @@ export async function buildApp(opts = {}) {
       ...(process.env.NODE_ENV !== 'production' && { stack: error.stack }),
     });
   });
+
+  // 7. Start Background Services
+  startReminderService();
 
   return app;
 }

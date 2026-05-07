@@ -23,6 +23,11 @@ const subjectSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    lecturer_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      index: true,
+    },
     // ID grup chat yang terhubung dengan MK ini
     conversation_id: {
       type: mongoose.Schema.Types.ObjectId,

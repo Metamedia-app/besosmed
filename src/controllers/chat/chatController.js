@@ -178,6 +178,18 @@ export async function sendMessage(request, reply) {
       convId = conv._id;
     }
 
+    // --- PROTEKSI MUTE GRUP (Hanya untuk grup/community) ---
+    const currentConv = await Conversation.findById(convId);
+    if (currentConv && currentConv.is_muted) {
+      const userRole = request.user.role;
+      if (userRole !== 'admin' && userRole !== 'dosen') {
+        return reply.status(403).send({
+          success: false,
+          message: 'Grup sedang di-mute oleh Dosen. Anda tidak dapat mengirim pesan saat ini.'
+        });
+      }
+    }
+
     // 3. Enkripsi pesan teks
     const encryptedBody = encryptMessage(body);
 
