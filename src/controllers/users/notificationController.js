@@ -51,6 +51,9 @@ export async function getNotifications(request, reply) {
         case 'takedown':
           message = 'Postingan Anda di-takedown karena melanggar pedoman komunitas.';
           break;
+        case 'chat':
+          message = 'Ada pesan baru untukmu.';
+          break;
         default:
           message = 'Ada interaksi baru di akun Anda.';
       }
@@ -60,6 +63,7 @@ export async function getNotifications(request, reply) {
         type: n.type,
         sender: n.sender_id,
         post: n.post_id,
+        reference_id: n.reference_id, // Tambahan untuk ID Chat/Room
         message,
         is_read: n.is_read,
         others_count: count,

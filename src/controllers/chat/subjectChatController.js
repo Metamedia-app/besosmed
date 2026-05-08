@@ -4,7 +4,9 @@ import User from '../../models/User.js';
 import Message from '../../models/Message.js';
 import { encryptMessage, decryptMessage, encryptBuffer } from '../../services/encryptionService.js';
 import { uploadFile, deleteFile } from '../../services/r2Service.js';
-import { emitGroupMessage, emitGroupTypingStatus } from '../../services/wsService.js';
+import { emitGroupMessage, emitGroupTypingStatus, emitUnreadUpdate } from '../../services/wsService.js';
+import { createChatNotificationsBatch, markChatAsRead } from '../../services/notificationService.js';
+import { getUnreadSummaryData } from './unreadController.js';
 
 /**
  * Sinkronisasi Data Mahasiswa & MK dari JSON
@@ -276,6 +278,16 @@ export async function sendGroupMessage(request, reply) {
     });
     await conv.save();
 
+    // 6. Buat Notifikasi (Massal) untuk semua peserta kecuali pengirim
+    const otherParticipants = conv.participants.filter(p => p.toString() !== senderId);
+    await createChatNotificationsBatch(otherParticipants, senderId);
+
+    // 7. Emit Real-time Unread Update ke SEMUA penerima
+    otherParticipants.forEach(async (pId) => {
+      const data = await getUnreadSummaryData(pId.toString());
+      emitUnreadUpdate(pId.toString(), data);
+    });
+
     await message.populate('sender_id', 'nama nim avatar_url');
     
     const formattedMessage = {
@@ -325,6 +337,13 @@ export async function getGroupMessages(request, reply) {
     await Conversation.findByIdAndUpdate(conversationId, {
       [`unread_counts.${userId}`]: 0
     });
+
+    // Tandai notifikasi chat sebagai terbaca
+    await markChatAsRead(userId);
+
+    // Emit Real-time Unread Update ke user yang membaca
+    const unreadData = await getUnreadSummaryData(userId);
+    emitUnreadUpdate(userId, unreadData);
 
     return reply.send({ success: true, data: formatted });
   } catch (error) {

@@ -10,7 +10,13 @@ async function mongoosePlugin(fastify) {
 
   try {
     mongoose.set('strictQuery', false);
-    await mongoose.connect(config.mongoUri);
+    fastify.log.info('🔌 Connecting to MongoDB...');
+    
+    // Set timeout koneksi manual agar tidak gantung selamanya
+    await mongoose.connect(config.mongoUri, {
+      serverSelectionTimeoutMS: 5000, // Tunggu 5 detik saja, kalau gagal langsung error
+    });
+    
     fastify.log.info('✅ MongoDB connected successfully');
 
     fastify.decorate('mongoose', mongoose);

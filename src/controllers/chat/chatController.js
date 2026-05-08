@@ -3,7 +3,9 @@ import Message from '../../models/Message.js';
 import User from '../../models/User.js';
 import { encryptMessage, decryptMessage, encryptBuffer, decryptBuffer } from '../../services/encryptionService.js';
 import { uploadFile, r2Client, GetObjectCommand, deleteFile } from '../../services/r2Service.js';
-import { emitNewMessage, emitTypingStatus } from '../../services/wsService.js';
+import { emitNewMessage, emitTypingStatus, emitUnreadUpdate } from '../../services/wsService.js';
+import { createChatNotification, markChatAsRead } from '../../services/notificationService.js';
+import { getUnreadSummaryData } from './unreadController.js';
 
 /**
  * Mengambil daftar percakapan (List Inbox)
@@ -104,6 +106,13 @@ export async function getMessages(request, reply) {
     await Conversation.findByIdAndUpdate(conversationId, {
       [`unread_counts.${userId}`]: 0
     });
+
+    // 4. Tandai notifikasi chat sebagai terbaca
+    await markChatAsRead(userId);
+
+    // 5. Emit Real-time Unread Update ke user yang membaca
+    const unreadData = await getUnreadSummaryData(userId);
+    emitUnreadUpdate(userId, unreadData);
 
     return reply.send({ success: true, data: formatted });
   } catch (error) {
@@ -211,11 +220,18 @@ export async function sendMessage(request, reply) {
           $inc: { [`unread_counts.${recipient}`]: 1 }
         });
 
-        // 6. Emit via Socket.io
+        // 6. Buat Notifikasi (Pesan baru untukmu)
+        await createChatNotification(recipient, senderId);
+
+        // 7. Emit via Socket.io
         emitNewMessage(recipient, {
           ...newMessage.toObject(),
           body: decryptMessage(newMessage.body) 
         });
+
+        // 8. Emit Real-time Unread Update ke penerima
+        const unreadData = await getUnreadSummaryData(recipient);
+        emitUnreadUpdate(recipient, unreadData);
       }
     }
 

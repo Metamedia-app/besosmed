@@ -217,7 +217,16 @@ export function emitMuteStatus(conversationId, isMuted) {
     data: {
       conversation_id: conversationId.toString(),
       is_muted: isMuted,
-      message: isMuted ? 'Grup ini telah dibisukan oleh Dosen.' : 'Grup ini sekarang sudah bisa mengirim pesan.'
     },
+  });
+}
+
+/**
+ * Update Angka Badge Unread secara Real-time
+ */
+export function emitUnreadUpdate(userId, unreadData) {
+  sendToUser(userId, {
+    type: 'unread_update',
+    data: unreadData,
   });
 }

@@ -7,11 +7,21 @@ import {
   clearConversation,
   getMedia
 } from '../../controllers/chat/chatController.js';
+import { getUnreadSummary } from '../../controllers/chat/unreadController.js';
 
 export default async function chatRoutes(fastify) {
   // Semua rute chat memerlukan autentikasi
   fastify.register(async (protectedRoutes) => {
     protectedRoutes.addHook('preValidation', fastify.authenticate);
+
+    // Summary Unread (Badge Utama)
+    protectedRoutes.get('/unread-summary', {
+      schema: {
+        tags: ['Chat Inbox'],
+        summary: 'Ringkasan hitungan pesan belum dibaca (Total & Per Kategori)',
+        security: [{ bearerAuth: [] }]
+      }
+    }, getUnreadSummary);
 
     // List Inbox
     protectedRoutes.get('/conversations', {

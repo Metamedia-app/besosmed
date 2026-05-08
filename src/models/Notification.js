@@ -15,13 +15,17 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['like', 'comment', 'repost', 'follow', 'takedown'],
+      enum: ['like', 'comment', 'repost', 'follow', 'takedown', 'chat'],
       required: true,
     },
     post_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Post',
       required: false, // Opsional karena tidak semua notif ada postingannya (misal: Follow)
+    },
+    reference_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: false, // Digunakan untuk ConversationId pada chat
     },
     is_read: { type: Boolean, default: false },
     others_count: { type: Number, default: 0 },
