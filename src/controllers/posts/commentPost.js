@@ -4,7 +4,7 @@ import Post from '../../models/Post.js';
 import Report from '../../models/Report.js';
 import Notification from '../../models/Notification.js';
 import User from '../../models/User.js';
-import { countTotalUnreadItems, sendPushNotification } from '../../services/notificationService.js';
+import { countTotalUnreadItems, sendPushNotification, triggerPushNotification } from '../../services/notificationService.js';
 import { emitNewComment, emitNotification, sendToUser } from '../../services/wsService.js';
 import { containsToxicWords } from '../../utils/badWords.js';
 
