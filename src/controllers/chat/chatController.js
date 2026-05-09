@@ -16,6 +16,7 @@ export async function getConversations(request, reply) {
   try {
     const conversations = await Conversation.find({
       participants: userId,
+      type: 'inbox' // Filter hanya percakapan pribadi (Inbox)
     })
       .sort({ updatedAt: -1 })
       .populate('participants', 'nama nim avatar_url')
@@ -81,8 +82,13 @@ export async function getMessages(request, reply) {
   const { limit = 30, skip = 0 } = request.query;
 
   try {
-    // 1. Pastikan user adalah peserta percakapan ini
-    const conv = await Conversation.findOne({ _id: conversationId, participants: userId });
+    // 1. Pastikan user adalah peserta percakapan ini dan bertipe INBOX
+    const conv = await Conversation.findOne({ 
+      _id: conversationId, 
+      participants: userId,
+      type: 'inbox' 
+    });
+    
     if (!conv) {
       return reply.status(403).send({ success: false, message: 'Akses ditolak.' });
     }
