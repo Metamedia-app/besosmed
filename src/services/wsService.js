@@ -214,9 +214,9 @@ export function emitAssignmentReminder(conversationId, assignment, message) {
  */
 export function emitMuteStatus(conversationId, isMuted) {
   sendToChatRoom(conversationId, {
-    type: 'mute_status_update',
+    type: 'group_mute_update',
     data: {
-      conversation_id: conversationId.toString(),
+      groupId: conversationId.toString(),
       is_muted: isMuted,
     },
   });
