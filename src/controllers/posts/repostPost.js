@@ -1,5 +1,5 @@
 import Notification from '../../models/Notification.js';
-import { countTotalUnreadItems } from '../../services/notificationService.js';
+import { countTotalUnreadItems, triggerPushNotification } from '../../services/notificationService.js';
 import { emitRepostUpdate, emitNotification, emitNewPost, emitShareUpdate } from '../../services/wsService.js';
 
 export async function repostPost(request, reply) {
@@ -130,6 +130,16 @@ export async function repostPost(request, reply) {
       unread_count: unreadCount, // Kirim angka badge terbaru
       created_at: notif.createdAt,
       updatedAt: notif.updatedAt,
+    });
+
+    // --- KIRIM PUSH NOTIFICATION (FCM) ---
+    triggerPushNotification(originalPost.author_id, {
+      title: 'BeSosmed',
+      body: message,
+      data: {
+        type: 'repost',
+        post_id: originalPostId.toString()
+      }
     });
   }
 

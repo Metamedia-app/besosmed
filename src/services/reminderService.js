@@ -1,5 +1,7 @@
 import Assignment from '../models/Assignment.js';
+import Conversation from '../models/Conversation.js';
 import { emitAssignmentReminder } from './wsService.js';
+import { triggerPushNotificationBatch } from './notificationService.js';
 
 /**
  * Memulai pengecekan deadline tugas secara berkala (setiap 1 menit)
@@ -50,4 +52,21 @@ async function sendReminder(assignment, type, timeText) {
 
   // 2. Kirim via Socket.io
   emitAssignmentReminder(assignment.conversation_id, assignment, message);
+
+  // 3. Kirim via FCM (Push Notification) ke SEMUA peserta di grup tersebut
+  try {
+    const conv = await Conversation.findById(assignment.conversation_id).select('participants');
+    if (conv && conv.participants.length > 0) {
+      triggerPushNotificationBatch(conv.participants, {
+        title: 'BeSosmed Akademik',
+        body: message,
+        data: {
+          type: 'assignment',
+          reference_id: assignment._id.toString()
+        }
+      });
+    }
+  } catch (err) {
+    console.error('[ReminderService] Failed to send FCM for assignment:', err);
+  }
 }

@@ -54,10 +54,68 @@ export async function sendPushNotification(tokens, payload) {
 
   try {
     const response = await admin.messaging().sendEachForMulticast(message);
-    console.log(`[FCM] Berhasil mengirim ke ${response.successCount} perangkat. Gagal: ${response.failureCount}`);
+    console.log(`[FCM] 📤 Mengirim notifikasi: "${payload.title}"`);
+    console.log(`[FCM] ✅ Berhasil: ${response.successCount} | ❌ Gagal: ${response.failureCount}`);
+    
+    // Opsional: Bersihkan token yang sudah tidak valid (expired)
+    if (response.failureCount > 0) {
+      console.warn('[FCM] Beberapa token mungkin sudah kadaluarsa atau tidak valid.');
+    }
+    
     return response;
   } catch (error) {
-    console.error('[FCM] Error mengirim push notification:', error);
+    console.error('[FCM] ❌ FATAL ERROR saat kirim push:', error.message);
+  }
+}
+
+/**
+ * Helper: Mengambil token user dan mengirim push notification
+ * @param {string} userId 
+ * @param {object} payload - { title, body, data }
+ */
+export async function triggerPushNotification(userId, payload) {
+  try {
+    const { default: User } = await import('../models/User.js');
+    const user = await User.findById(userId).select('fcm_tokens');
+    
+    if (!user || !user.fcm_tokens || user.fcm_tokens.length === 0) {
+      // console.log(`[FCM] Skip: User ${userId} tidak punya token terdaftar.`);
+      return;
+    }
+
+    console.log(`[FCM] 🚀 FCM READY: Menyiapkan pengiriman ke User ${userId}...`);
+    return await sendPushNotification(user.fcm_tokens, payload);
+  } catch (error) {
+    console.error('[FCM] Error in triggerPushNotification:', error);
+  }
+}
+
+/**
+ * Helper: Mengambil token banyak user dan mengirim push notification secara massal
+ * @param {string[]} userIds 
+ * @param {object} payload - { title, body, data }
+ */
+export async function triggerPushNotificationBatch(userIds, payload) {
+  if (!userIds || userIds.length === 0) return;
+
+  try {
+    const { default: User } = await import('../models/User.js');
+    const users = await User.find({ _id: { $in: userIds } }).select('fcm_tokens');
+    
+    // Gabungkan semua token dari semua user menjadi satu array flat
+    const allTokens = users.reduce((acc, user) => {
+      if (user.fcm_tokens && user.fcm_tokens.length > 0) {
+        return acc.concat(user.fcm_tokens);
+      }
+      return acc;
+    }, []);
+
+    if (allTokens.length === 0) return;
+
+    console.log(`[FCM] 🚀 FCM READY (Batch): Menyiapkan pengiriman ke ${userIds.length} user (${allTokens.length} perangkat)...`);
+    return await sendPushNotification(allTokens, payload);
+  } catch (error) {
+    console.error('[FCM] Error in triggerPushNotificationBatch:', error);
   }
 }
 

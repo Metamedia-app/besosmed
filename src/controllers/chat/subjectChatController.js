@@ -5,7 +5,7 @@ import Message from '../../models/Message.js';
 import { encryptMessage, decryptMessage, encryptBuffer } from '../../services/encryptionService.js';
 import { uploadFile, deleteFile } from '../../services/r2Service.js';
 import { emitGroupMessage, emitGroupTypingStatus, emitUnreadUpdate } from '../../services/wsService.js';
-import { createChatNotificationsBatch, markChatAsRead } from '../../services/notificationService.js';
+import { createChatNotificationsBatch, markChatAsRead, triggerPushNotificationBatch } from '../../services/notificationService.js';
 import { getUnreadSummaryData } from './unreadController.js';
 
 /**
@@ -288,6 +288,16 @@ export async function sendGroupMessage(request, reply) {
       emitUnreadUpdate(pId.toString(), data);
     });
 
+    // 8. Kirim Push Notification via FCM ke SEMUA penerima
+    triggerPushNotificationBatch(otherParticipants, {
+      title: 'BeSosmed',
+      body: 'Ada pesan baru untukmu.',
+      data: {
+        type: 'chat',
+        reference_id: conversationId.toString()
+      }
+    });
+
     await message.populate('sender_id', 'nama nim avatar_url');
     
     const formattedMessage = {
@@ -420,5 +430,64 @@ export async function setGroupTypingStatus(request, reply) {
     return reply.send({ success: true });
   } catch (error) {
     return reply.status(500).send({ success: false });
+  }
+}
+
+/**
+ * Mengambil detail informasi grup mata kuliah (Nama, Deskripsi, Anggota)
+ * Endpoint: GET /api/v1/chat/subject/groups/:conversationId
+ */
+export async function getGroupDetail(request, reply) {
+  const { conversationId } = request.params;
+  const userId = request.user.id;
+
+  try {
+    const conv = await Conversation.findOne({ 
+      _id: conversationId, 
+      type: 'group',
+      participants: userId // Pastikan user adalah anggota grup ini
+    })
+    .populate({
+      path: 'subject_id',
+      populate: { path: 'lecturer_id', select: 'nim nama avatar_url' }
+    })
+    .populate('participants', 'nim nama avatar_url')
+    .lean();
+
+    if (!conv) {
+      return reply.status(404).send({ success: false, message: 'Grup mata kuliah tidak ditemukan atau Anda bukan anggota.' });
+    }
+
+    const subject = conv.subject_id;
+    const lecturer = subject?.lecturer_id;
+
+    // Format response ala Community Detail
+    const responseData = {
+      _id: conv._id,
+      name: conv.name || subject?.name,
+      description: `Mata Kuliah: ${subject?.code || '-'} (${subject?.academic_year || '-'})`,
+      avatar_url: conv.avatar_url || '',
+      // Dosen dianggap sebagai Creator/Admin di grup matkul
+      creator: lecturer || null,
+      admins: lecturer ? [lecturer] : [],
+      members: conv.participants.map(p => ({
+        _id: p._id,
+        nim: p.nim,
+        nama: p.nama,
+        avatar_url: p.avatar_url || ''
+      })),
+      member_count: conv.participants.length,
+      createdAt: conv.createdAt,
+      updatedAt: conv.updatedAt
+    };
+
+    return reply.send({
+      success: true,
+      data: responseData
+    });
+
+  } catch (error) {
+    request.log.error(error);
+    return reply.status(500).send({ success: false, message: 'Gagal mengambil detail grup.' });
   }
 }

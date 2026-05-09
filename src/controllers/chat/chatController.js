@@ -4,7 +4,7 @@ import User from '../../models/User.js';
 import { encryptMessage, decryptMessage, encryptBuffer, decryptBuffer } from '../../services/encryptionService.js';
 import { uploadFile, r2Client, GetObjectCommand, deleteFile } from '../../services/r2Service.js';
 import { emitNewMessage, emitTypingStatus, emitUnreadUpdate } from '../../services/wsService.js';
-import { createChatNotification, markChatAsRead } from '../../services/notificationService.js';
+import { createChatNotification, markChatAsRead, triggerPushNotification } from '../../services/notificationService.js';
 import { getUnreadSummaryData } from './unreadController.js';
 
 /**
@@ -232,6 +232,16 @@ export async function sendMessage(request, reply) {
         // 8. Emit Real-time Unread Update ke penerima
         const unreadData = await getUnreadSummaryData(recipient);
         emitUnreadUpdate(recipient, unreadData);
+
+        // 9. Kirim Push Notification via FCM
+        triggerPushNotification(recipient, {
+          title: 'BeSosmed',
+          body: 'Ada pesan baru untukmu.',
+          data: {
+            type: 'chat',
+            reference_id: conversationId.toString()
+          }
+        });
       }
     }
 

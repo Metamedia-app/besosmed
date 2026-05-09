@@ -4,7 +4,7 @@ import User from '../../models/User.js';
 import { encryptMessage, decryptMessage, encryptBuffer } from '../../services/encryptionService.js';
 import { uploadFile, deleteFile } from '../../services/r2Service.js';
 import { emitGroupMessage, emitGroupTypingStatus, emitUnreadUpdate } from '../../services/wsService.js';
-import { createChatNotificationsBatch, markChatAsRead } from '../../services/notificationService.js';
+import { createChatNotificationsBatch, markChatAsRead, triggerPushNotificationBatch } from '../../services/notificationService.js';
 import { getUnreadSummaryData } from './unreadController.js';
 
 /**
@@ -292,6 +292,16 @@ export async function sendCommunityMessage(request, reply) {
     otherParticipants.forEach(async (pId) => {
       const data = await getUnreadSummaryData(pId.toString());
       emitUnreadUpdate(pId.toString(), data);
+    });
+
+    // 8. Kirim Push Notification via FCM ke SEMUA penerima
+    triggerPushNotificationBatch(otherParticipants, {
+      title: 'BeSosmed',
+      body: 'Ada pesan baru untukmu.',
+      data: {
+        type: 'chat',
+        reference_id: conversationId.toString()
+      }
     });
 
     await message.populate('sender_id', 'nama nim avatar_url');

@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import User from '../../models/User.js';
 import Follow from '../../models/Follow.js';
 import Notification from '../../models/Notification.js';
-import { countTotalUnreadItems } from '../../services/notificationService.js';
+import { countTotalUnreadItems, triggerPushNotification } from '../../services/notificationService.js';
 import { emitNotification, emitFollowUpdate } from '../../services/wsService.js';
 
 /**
@@ -94,6 +94,16 @@ export async function followUser(request, reply) {
       unread_count: unreadCount, // Kirim angka badge terbaru
       created_at: notif.createdAt,
       updatedAt: notif.updatedAt,
+    });
+
+    // --- KIRIM PUSH NOTIFICATION (FCM) ---
+    triggerPushNotification(followingId, {
+      title: 'BeSosmed',
+      body: message,
+      data: {
+        type: 'follow',
+        sender_id: followerId.toString()
+      }
     });
 
     return reply.status(200).send({

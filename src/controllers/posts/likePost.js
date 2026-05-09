@@ -1,7 +1,7 @@
 import Like from '../../models/Like.js';
 import Post from '../../models/Post.js';
 import Notification from '../../models/Notification.js';
-import { countTotalUnreadItems } from '../../services/notificationService.js';
+import { countTotalUnreadItems, triggerPushNotification } from '../../services/notificationService.js';
 import { emitLikeUpdate, emitNotification } from '../../services/wsService.js';
 
 export async function likePost(request, reply) {
@@ -95,6 +95,16 @@ export async function likePost(request, reply) {
         unread_count: unreadCount, // Kirim angka badge terbaru
         created_at: notif.createdAt,
         updatedAt: notif.updatedAt,
+      });
+
+      // --- KIRIM PUSH NOTIFICATION (FCM) ---
+      triggerPushNotification(post.author_id, {
+        title: 'BeSosmed',
+        body: message,
+        data: {
+          type: 'like',
+          post_id: postId.toString()
+        }
       });
     }
   }

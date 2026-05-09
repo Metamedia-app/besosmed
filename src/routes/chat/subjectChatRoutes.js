@@ -4,7 +4,8 @@ import {
   sendGroupMessage,
   getGroupMessages,
   deleteGroupMessage,
-  setGroupTypingStatus
+  setGroupTypingStatus,
+  getGroupDetail
 } from '../../controllers/chat/subjectChatController.js';
 import { getMedia } from '../../controllers/chat/chatController.js';
 
@@ -44,6 +45,15 @@ export default async function subjectChatRoutes(fastify) {
       security: [{ bearerAuth: [] }]
     }
   }, getMySubjectGroups);
+
+  fastify.get('/groups/:conversationId', {
+    schema: {
+      tags: ['Chat Matkul'],
+      summary: 'Mengambil detail informasi grup mata kuliah (Anggota, Dosen, Deskripsi)',
+      params: { type: 'object', properties: { conversationId: { type: 'string' } } },
+      security: [{ bearerAuth: [] }]
+    }
+  }, getGroupDetail);
 
   fastify.post('/messages', {
     schema: {

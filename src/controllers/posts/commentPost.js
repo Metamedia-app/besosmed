@@ -84,6 +84,49 @@ export async function addComment(request, reply) {
         }
       });
     });
+
+    // --- NOTIFIKASI UNTUK USER (PELANGGAR) ---
+    const adminSender = admins.length > 0 ? admins[0]._id : userId; // Pakai admin pertama sebagai pengirim sistem
+    const userNotif = await Notification.create({
+      recipient_id: userId,
+      sender_id: adminSender,
+      type: 'toxic',
+      post_id: postId,
+      is_read: false
+    });
+
+    // Emit Real-time via Socket.io agar user langsung dapet alert
+    const unreadCount = await countTotalUnreadItems(userId);
+    emitNotification(userId, {
+      id: userNotif._id,
+      type: 'toxic',
+      sender_id: adminSender,
+      post_id: postId,
+      message: 'Komentar Anda melanggar pedoman komunitas.',
+      unread_count: unreadCount,
+      created_at: userNotif.createdAt,
+      updatedAt: userNotif.updatedAt,
+    });
+
+    // Kirim Push Notification via FCM
+    triggerPushNotification(userId, {
+      title: 'BeSosmed',
+      body: 'Komentar Anda melanggar pedoman komunitas.',
+      data: {
+        type: 'toxic',
+        post_id: postId.toString()
+      }
+    });
+
+    // --- AUTO-DELETE (GAK MUNCUL DI PUBLIK) ---
+    comment.is_deleted = true;
+    await comment.save();
+
+    return reply.status(403).send({
+      success: false,
+      message: 'Komentar Anda terdeteksi mengandung kata kasar dan telah diblokir otomatis.',
+      data: { is_toxic: true }
+    });
   }
 
   // 1. Update total komentar di postingan (Atomic)
@@ -180,6 +223,16 @@ export async function addComment(request, reply) {
         created_at: notif.createdAt,
         updatedAt: notif.updatedAt,
       });
+
+      // --- KIRIM PUSH NOTIFICATION (FCM) ---
+      triggerPushNotification(parentComment.author_id, {
+        title: 'BeSosmed',
+        body: message,
+        data: {
+          type: 'comment',
+          post_id: postId.toString()
+        }
+      });
     }
   } else {
     // 2. Jika KOMENTAR UTAMA: Notifikasi ke pemilik postingan
@@ -248,6 +301,16 @@ export async function addComment(request, reply) {
         unread_count: unreadCount, // Kirim angka badge terbaru
         created_at: notif.createdAt,
         updatedAt: notif.updatedAt,
+      });
+
+      // --- KIRIM PUSH NOTIFICATION (FCM) ---
+      triggerPushNotification(post.author_id, {
+        title: 'BeSosmed',
+        body: message,
+        data: {
+          type: 'comment',
+          post_id: postId.toString()
+        }
       });
     }
   }

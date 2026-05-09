@@ -3,6 +3,7 @@ import { linkGoogleAccount } from '../../controllers/auth/googleAuthController.j
 import { followUser, unfollowUser, getFollowers, getFollowing } from '../../controllers/users/followController.js';
 import { searchUsers } from '../../controllers/users/searchUser.js';
 import { getUserPosts } from '../../controllers/posts/getUserPosts.js';
+import { updateFcmToken, removeFcmToken } from '../../controllers/users/fcmController.js';
 
 async function userRoutes(fastify) {
   const auth = { onRequest: [fastify.authenticate] };
@@ -430,6 +431,39 @@ async function userRoutes(fastify) {
       }
     },
     handler: getFollowing,
+  });
+
+  // ── FCM TOKEN MANAGEMENT ──────────────────────────────────────────────────────
+  fastify.post('/fcm-token', {
+    ...auth,
+    schema: {
+      tags: ['Profile'],
+      summary: 'Register FCM Token',
+      description: 'Mendaftarkan token perangkat untuk Push Notification.',
+      body: {
+        type: 'object',
+        required: ['token'],
+        properties: { token: { type: 'string' } }
+      },
+      security: [{ bearerAuth: [] }]
+    },
+    handler: updateFcmToken,
+  });
+
+  fastify.delete('/fcm-token', {
+    ...auth,
+    schema: {
+      tags: ['Profile'],
+      summary: 'Remove FCM Token',
+      description: 'Menghapus token perangkat (saat logout).',
+      body: {
+        type: 'object',
+        required: ['token'],
+        properties: { token: { type: 'string' } }
+      },
+      security: [{ bearerAuth: [] }]
+    },
+    handler: removeFcmToken,
   });
 }
 

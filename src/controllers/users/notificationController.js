@@ -54,6 +54,9 @@ export async function getNotifications(request, reply) {
         case 'chat':
           message = 'Ada pesan baru untukmu.';
           break;
+        case 'toxic':
+          message = 'Komentar Anda melanggar pedoman komunitas.';
+          break;
         default:
           message = 'Ada interaksi baru di akun Anda.';
       }
