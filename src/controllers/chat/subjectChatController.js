@@ -497,6 +497,7 @@ export async function getGroupDetail(request, reply) {
         avatar_url: p.avatar_url || ''
       })),
       member_count: conv.participants.length,
+      is_muted: conv.is_muted || false,
       createdAt: conv.createdAt,
       updatedAt: conv.updatedAt
     };
