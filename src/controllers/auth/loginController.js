@@ -59,6 +59,7 @@ export async function login(request, reply) {
         program_studi: user.program_studi,
         jenis_kelamin: user.jenis_kelamin,
         status_mahasiswa: user.status_mahasiswa,
+        role: user.role || 'user',
         avatar_url: user.avatar_url,
       },
     },

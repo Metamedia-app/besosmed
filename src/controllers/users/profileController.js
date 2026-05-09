@@ -17,7 +17,20 @@ export async function getMe(request, reply) {
 
   return reply.send({
     success: true,
-    data: { user },
+    data: { 
+      user: {
+        _id: user._id,
+        nim: user.nim,
+        nama: user.nama,
+        program_studi: user.program_studi,
+        status_mahasiswa: user.status_mahasiswa,
+        role: user.role || 'user', // Tambahkan fallback
+        bio: user.bio,
+        avatar_url: user.avatar_url,
+        is_online: user.is_online,
+        createdAt: user.createdAt
+      }
+    },
   });
 }
 
@@ -53,6 +66,7 @@ export async function updateMe(request, reply) {
         avatar_url: user.avatar_url,
         program_studi: user.program_studi,
         status_mahasiswa: user.status_mahasiswa,
+        role: user.role,
         tempat_lahir: user.tempat_lahir,
         tanggal_lahir: user.tanggal_lahir,
         agama: user.agama,

@@ -143,6 +143,7 @@ export async function loginWithGoogle(request, reply) {
           program_studi: user.program_studi,
           jenis_kelamin: user.jenis_kelamin,
           status_mahasiswa: user.status_mahasiswa,
+          role: user.role,
           avatar_url: user.avatar_url,
           email: user.email
         },

@@ -44,6 +44,7 @@ const loginSchema = {
                 program_studi: { type: 'string' },
                 jenis_kelamin: { type: 'string' },
                 status_mahasiswa: { type: 'string' },
+                role: { type: 'string' },
                 avatar_url: { type: 'string' },
               },
             },
@@ -96,6 +97,35 @@ async function authRoutes(fastify) {
         required: ['idToken'],
         properties: {
           idToken: { type: 'string', description: 'ID Token dari Firebase Client SDK' }
+        }
+      },
+      response: {
+        200: {
+          description: 'Login Google berhasil',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            message: { type: 'string' },
+            data: {
+              type: 'object',
+              properties: {
+                token: { type: 'string' },
+                user: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'string' },
+                    nim: { type: 'string' },
+                    nama: { type: 'string' },
+                    program_studi: { type: 'string' },
+                    role: { type: 'string' },
+                    status_mahasiswa: { type: 'string' },
+                    avatar_url: { type: 'string' },
+                    email: { type: 'string' }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
