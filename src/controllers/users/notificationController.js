@@ -10,7 +10,10 @@ export async function getNotifications(request, reply) {
   const { limit = 20, skip = 0 } = request.query;
 
   try {
-    const notifications = await Notification.find({ recipient_id: userId })
+    const notifications = await Notification.find({ 
+      recipient_id: userId,
+      type: { $ne: 'chat' } // Sembunyikan notifikasi chat dari list (Data Lama & Baru)
+    })
       .sort({ updatedAt: -1 }) // Urutkan berdasarkan interaksi terbaru
       .skip(parseInt(skip))
       .limit(parseInt(limit))
@@ -133,7 +136,7 @@ export async function markAllAsRead(request, reply) {
 
   try {
     await Notification.updateMany(
-      { recipient_id: userId, is_read: false },
+      { recipient_id: userId, is_read: false, type: { $ne: 'chat' } },
       { is_read: true }
     );
 

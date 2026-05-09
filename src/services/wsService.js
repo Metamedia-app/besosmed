@@ -184,11 +184,12 @@ export function emitGroupTypingStatus(conversationId, senderId, isTyping) {
   });
 }
 
-export function emitMessageRead(recipientId, conversationId, messageId) {
+export function emitMessageStatusUpdate(recipientId, conversationId, status) {
   sendToUser(recipientId, {
-    type: 'message_read',
+    type: 'message_status_update',
     data: {
       conversation_id: conversationId.toString(),
+      status: status // 'sent', 'delivered', 'read'
     },
   });
 }

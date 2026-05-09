@@ -278,9 +278,8 @@ export async function sendGroupMessage(request, reply) {
     });
     await conv.save();
 
-    // 6. Buat Notifikasi (Massal) untuk semua peserta kecuali pengirim
+    // 6. Siapkan daftar penerima (kecuali pengirim)
     const otherParticipants = conv.participants.filter(p => p.toString() !== senderId);
-    await createChatNotificationsBatch(otherParticipants, senderId);
 
     // 7. Emit Real-time Unread Update ke SEMUA penerima
     otherParticipants.forEach(async (pId) => {

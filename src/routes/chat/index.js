@@ -5,7 +5,8 @@ import {
   setTypingStatus, 
   deleteMessage, 
   clearConversation,
-  getMedia
+  getMedia,
+  markInboxAsRead
 } from '../../controllers/chat/chatController.js';
 import { getUnreadSummary } from '../../controllers/chat/unreadController.js';
 
@@ -109,6 +110,16 @@ export default async function chatRoutes(fastify) {
         security: [{ bearerAuth: [] }]
       }
     }, clearConversation);
+
+    // Tandai Dibaca (Ceklis Biru)
+    protectedRoutes.patch('/conversations/:conversationId/read', {
+      schema: {
+        tags: ['Chat Inbox'],
+        summary: 'Tandai semua pesan dalam percakapan sebagai dibaca (Ceklis Biru)',
+        params: { type: 'object', properties: { conversationId: { type: 'string' } } },
+        security: [{ bearerAuth: [] }]
+      }
+    }, markInboxAsRead);
 
     // Proxy Media (Dekripsi Gambar/Video)
     protectedRoutes.get('/media/:folder/:filename', {

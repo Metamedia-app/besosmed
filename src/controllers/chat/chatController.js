@@ -3,7 +3,7 @@ import Message from '../../models/Message.js';
 import User from '../../models/User.js';
 import { encryptMessage, decryptMessage, encryptBuffer, decryptBuffer } from '../../services/encryptionService.js';
 import { uploadFile, r2Client, GetObjectCommand, deleteFile } from '../../services/r2Service.js';
-import { emitNewMessage, emitTypingStatus, emitUnreadUpdate } from '../../services/wsService.js';
+import { emitNewMessage, emitTypingStatus, emitUnreadUpdate, emitMessageStatusUpdate, isOnline } from '../../services/wsService.js';
 import { createChatNotification, markChatAsRead, triggerPushNotification } from '../../services/notificationService.js';
 import { getUnreadSummaryData } from './unreadController.js';
 
@@ -114,6 +114,20 @@ export async function getMessages(request, reply) {
     const unreadData = await getUnreadSummaryData(userId);
     emitUnreadUpdate(userId, unreadData);
 
+    // --- FITUR BARU: Update Status Pesan ke 'read' (Ceklis Biru) ---
+    const recipientId = conv.participants.find(p => p.toString() !== userId);
+    if (recipientId) {
+      const updated = await Message.updateMany(
+        { conversation_id: conversationId, sender_id: recipientId, status: { $ne: 'read' } },
+        { status: 'read' }
+      );
+
+      if (updated.modifiedCount > 0) {
+        // Beritahu si pengirim bahwa pesannya sudah dibaca
+        emitMessageStatusUpdate(recipientId, conversationId, 'read');
+      }
+    }
+
     return reply.send({ success: true, data: formatted });
   } catch (error) {
     return reply.status(500).send({ success: false, message: 'Gagal mengambil riwayat pesan.' });
@@ -202,12 +216,21 @@ export async function sendMessage(request, reply) {
     // 3. Enkripsi pesan teks
     const encryptedBody = encryptMessage(body);
 
+    // --- CEK APAKAH PENERIMA ONLINE (Untuk Status 'Delivered') ---
+    let initialStatus = 'sent';
+    const recipientIdForStatus = recipientId || (currentConv ? currentConv.participants.find(p => p.toString() !== senderId) : null);
+    
+    if (recipientIdForStatus && await isOnline(recipientIdForStatus)) {
+      initialStatus = 'delivered';
+    }
+
     // 4. Simpan Pesan
     const newMessage = await Message.create({
       conversation_id: convId,
       sender_id: senderId,
       body: encryptedBody,
-      attachments
+      attachments,
+      status: initialStatus
     });
 
     // 5. Update Conversation (Last Message & Unread Count untuk penerima)
@@ -219,9 +242,6 @@ export async function sendMessage(request, reply) {
           last_message: newMessage._id,
           $inc: { [`unread_counts.${recipient}`]: 1 }
         });
-
-        // 6. Buat Notifikasi (Pesan baru untukmu)
-        await createChatNotification(recipient, senderId);
 
         // 7. Emit via Socket.io
         emitNewMessage(recipient, {
@@ -435,5 +455,49 @@ export async function getMedia(request, reply) {
   } catch (error) {
     request.log.error(error);
     return reply.status(500).send({ success: false, message: 'Gagal memuat media.' });
+  }
+}
+
+/**
+ * Menandai semua pesan dalam percakapan Inbox sebagai 'read'
+ * PATCH /api/v1/chat/inbox/:conversationId/read
+ */
+export async function markInboxAsRead(request, reply) {
+  const userId = request.user.id;
+  const { conversationId } = request.params;
+
+  try {
+    const conv = await Conversation.findOne({ _id: conversationId, participants: userId });
+    if (!conv) return reply.status(404).send({ success: false, message: 'Percakapan tidak ditemukan.' });
+
+    // 1. Reset unread count untuk user ini
+    await Conversation.findByIdAndUpdate(conversationId, {
+      [`unread_counts.${userId}`]: 0
+    });
+
+    // 2. Tandai notifikasi chat sebagai terbaca
+    await markChatAsRead(userId);
+
+    // 3. Update status pesan dari lawan bicara menjadi 'read'
+    const recipientId = conv.participants.find(p => p.toString() !== userId);
+    if (recipientId) {
+      const updated = await Message.updateMany(
+        { conversation_id: conversationId, sender_id: recipientId, status: { $ne: 'read' } },
+        { status: 'read' }
+      );
+
+      if (updated.modifiedCount > 0) {
+        // Beritahu si pengirim via Socket
+        emitMessageStatusUpdate(recipientId, conversationId, 'read');
+      }
+    }
+
+    // 4. Update Badge unread global
+    const unreadData = await getUnreadSummaryData(userId);
+    emitUnreadUpdate(userId, unreadData);
+
+    return reply.send({ success: true, message: 'Percakapan ditandai sebagai dibaca.' });
+  } catch (error) {
+    return reply.status(500).send({ success: false, message: 'Gagal menandai pesan.' });
   }
 }

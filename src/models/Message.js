@@ -40,10 +40,11 @@ const messageSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    // Status pesan (optional)
-    is_read: {
-      type: Boolean,
-      default: false,
+    // Status pesan ala WhatsApp (sent = ceklis 1, delivered = ceklis 2 abu, read = ceklis 2 biru)
+    status: {
+      type: String,
+      enum: ['sent', 'delivered', 'read'],
+      default: 'sent'
     },
     // Fitur: Auto-delete (TTL) — Mewarisi waktu dari Conversation
     expiresAt: {

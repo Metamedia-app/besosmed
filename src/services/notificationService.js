@@ -12,7 +12,8 @@ export async function countTotalUnreadItems(userId) {
       { 
         $match: { 
           recipient_id: new (await import('mongoose')).default.Types.ObjectId(userId), 
-          is_read: false 
+          is_read: false,
+          type: { $ne: 'chat' } // Jangan hitung chat dalam badge notifikasi utama
         } 
       },
       { 
