@@ -46,6 +46,13 @@ const messageSchema = new mongoose.Schema(
       enum: ['sent', 'delivered', 'read'],
       default: 'sent'
     },
+    // Daftar user yang sudah membaca pesan ini (khusus Grup/Komunitas)
+    read_by: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+      }
+    ],
     // Fitur: Auto-delete (TTL) — Mewarisi waktu dari Conversation
     expiresAt: {
       type: Date

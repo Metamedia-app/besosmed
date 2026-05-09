@@ -3,7 +3,7 @@ import Message from '../../models/Message.js';
 import User from '../../models/User.js';
 import { encryptMessage, decryptMessage, encryptBuffer } from '../../services/encryptionService.js';
 import { uploadFile, deleteFile } from '../../services/r2Service.js';
-import { emitGroupMessage, emitGroupTypingStatus, emitUnreadUpdate } from '../../services/wsService.js';
+import { emitGroupMessage, emitGroupTypingStatus, emitUnreadUpdate, emitMessageStatusUpdate } from '../../services/wsService.js';
 import { createChatNotificationsBatch, markChatAsRead, triggerPushNotificationBatch } from '../../services/notificationService.js';
 import { getUnreadSummaryData } from './unreadController.js';
 
@@ -206,6 +206,26 @@ export async function getCommunityMessages(request, reply) {
     const unreadData = await getUnreadSummaryData(userId);
     emitUnreadUpdate(userId, unreadData);
 
+    // --- FITUR BARU: Update read_by & Ceklis Biru (Read by Everyone) ---
+    const convForRead = await Conversation.findById(communityId);
+    if (convForRead) {
+      const messagesToUpdate = await Message.find({
+        conversation_id: communityId,
+        sender_id: { $ne: userId },
+        read_by: { $ne: userId }
+      });
+
+      const totalParticipants = convForRead.participants.length;
+      for (const msg of messagesToUpdate) {
+        msg.read_by.addToSet(userId);
+        if (msg.read_by.length >= totalParticipants) {
+          msg.status = 'read';
+          emitMessageStatusUpdate(msg.sender_id, communityId, 'read');
+        }
+        await msg.save();
+      }
+    }
+
     return reply.send({ 
       success: true, 
       data: formatted,
@@ -267,7 +287,8 @@ export async function sendCommunityMessage(request, reply) {
       conversation_id: conversationId,
       sender_id: senderId,
       body: encryptedBody,
-      attachments
+      attachments,
+      read_by: [senderId] // Pengirim otomatis dianggap sudah baca
     });
 
     // Update last_message & unread counts
@@ -512,5 +533,52 @@ export async function setCommunityTypingStatus(request, reply) {
     return reply.send({ success: true });
   } catch (error) {
     return reply.status(500).send({ success: false });
+  }
+}
+
+/**
+ * Menandai semua pesan komunitas sebagai dibaca oleh user ini
+ * PATCH /api/v1/chat/communities/:communityId/read
+ */
+export async function markCommunityAsRead(request, reply) {
+  const userId = request.user.id;
+  const { communityId } = request.params;
+
+  try {
+    const conv = await Conversation.findOne({ _id: communityId, participants: userId, type: 'community' });
+    if (!conv) return reply.status(404).send({ success: false, message: 'Komunitas tidak ditemukan.' });
+
+    // 1. Reset unread count
+    await Conversation.findByIdAndUpdate(communityId, {
+      [`unread_counts.${userId}`]: 0
+    });
+
+    // 2. Tandai notifikasi chat sebagai terbaca
+    await markChatAsRead(userId);
+
+    // 3. Update badge realtime
+    const unreadData = await getUnreadSummaryData(userId);
+    emitUnreadUpdate(userId, unreadData);
+
+    // 4. Update read_by untuk semua pesan yang belum terbaca
+    const messagesToUpdate = await Message.find({
+      conversation_id: communityId,
+      sender_id: { $ne: userId },
+      read_by: { $ne: userId }
+    });
+
+    const totalParticipants = conv.participants.length;
+    for (const msg of messagesToUpdate) {
+      msg.read_by.addToSet(userId);
+      if (msg.read_by.length >= totalParticipants) {
+        msg.status = 'read';
+        emitMessageStatusUpdate(msg.sender_id, communityId, 'read');
+      }
+      await msg.save();
+    }
+
+    return reply.send({ success: true, message: 'Pesan komunitas ditandai sebagai dibaca.' });
+  } catch (error) {
+    return reply.status(500).send({ success: false, message: 'Gagal menandai pesan.' });
   }
 }

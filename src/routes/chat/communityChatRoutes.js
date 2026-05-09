@@ -8,7 +8,8 @@ import {
   inviteToCommunity,
   kickFromCommunity,
   deleteCommunity,
-  setCommunityTypingStatus
+  setCommunityTypingStatus,
+  markCommunityAsRead
 } from '../../controllers/chat/communityChatController.js';
 
 async function communityChatRoutes(fastify) {
@@ -212,6 +213,23 @@ async function communityChatRoutes(fastify) {
       security: [{ bearerAuth: [] }]
     },
     handler: deleteCommunity
+  });
+  // 9. Tandai Dibaca (Ceklis Biru - Read by Everyone)
+  fastify.patch('/communities/:communityId/read', {
+    ...auth,
+    schema: {
+      tags: ['Chat Community'],
+      summary: 'Mark Community Messages as Read (Ceklis Biru)',
+      description: 'Menandai semua pesan komunitas sebagai dibaca. Status berubah jadi biru jika SEMUA member sudah baca.',
+      params: {
+        type: 'object',
+        properties: {
+          communityId: { type: 'string', description: 'ID Komunitas' }
+        }
+      },
+      security: [{ bearerAuth: [] }]
+    },
+    handler: markCommunityAsRead
   });
 }
 

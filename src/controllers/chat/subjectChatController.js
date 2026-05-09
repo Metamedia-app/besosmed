@@ -4,7 +4,7 @@ import User from '../../models/User.js';
 import Message from '../../models/Message.js';
 import { encryptMessage, decryptMessage, encryptBuffer } from '../../services/encryptionService.js';
 import { uploadFile, deleteFile } from '../../services/r2Service.js';
-import { emitGroupMessage, emitGroupTypingStatus, emitUnreadUpdate } from '../../services/wsService.js';
+import { emitGroupMessage, emitGroupTypingStatus, emitUnreadUpdate, emitMessageStatusUpdate } from '../../services/wsService.js';
 import { createChatNotificationsBatch, markChatAsRead, triggerPushNotificationBatch } from '../../services/notificationService.js';
 import { getUnreadSummaryData } from './unreadController.js';
 
@@ -261,7 +261,8 @@ export async function sendGroupMessage(request, reply) {
       sender_id: senderId,
       body: encryptedBody,
       attachments,
-      expiresAt: conversationInfo?.expiresAt // Wariskan waktu mati dari grup
+      expiresAt: conversationInfo?.expiresAt, // Wariskan waktu mati dari grup
+      read_by: [senderId] // Pengirim otomatis dianggap sudah baca
     });
 
     // Update percakapan: last_message & unread counts untuk SEMUA peserta kecuali pengirim
@@ -350,9 +351,29 @@ export async function getGroupMessages(request, reply) {
     // Tandai notifikasi chat sebagai terbaca
     await markChatAsRead(userId);
 
-    // Emit Real-time Unread Update ke user yang membaca
+    // 5. Emit Real-time Unread Update ke user yang membaca
     const unreadData = await getUnreadSummaryData(userId);
     emitUnreadUpdate(userId, unreadData);
+
+    // --- FITUR BARU: Update read_by & Ceklis Biru (Read by Everyone) ---
+    const messagesToUpdate = await Message.find({
+      conversation_id: conversationId,
+      sender_id: { $ne: userId },
+      read_by: { $ne: userId }
+    });
+
+    if (messagesToUpdate.length > 0) {
+      const totalParticipants = conv.participants.length;
+      for (const msg of messagesToUpdate) {
+        msg.read_by.addToSet(userId);
+        // Jika pembaca sudah mencakup semua peserta, status jadi 'read'
+        if (msg.read_by.length >= totalParticipants) {
+          msg.status = 'read';
+          emitMessageStatusUpdate(msg.sender_id, conversationId, 'read');
+        }
+        await msg.save();
+      }
+    }
 
     return reply.send({ success: true, data: formatted });
   } catch (error) {
@@ -488,5 +509,53 @@ export async function getGroupDetail(request, reply) {
   } catch (error) {
     request.log.error(error);
     return reply.status(500).send({ success: false, message: 'Gagal mengambil detail grup.' });
+  }
+}
+
+/**
+ * Menandai semua pesan dalam grup matkul sebagai dibaca oleh user ini
+ * PATCH /api/v1/chat-matkul/groups/:conversationId/read
+ */
+export async function markGroupAsRead(request, reply) {
+  const userId = request.user.id;
+  const { conversationId } = request.params;
+
+  try {
+    const conv = await Conversation.findOne({ _id: conversationId, participants: userId });
+    if (!conv) return reply.status(404).send({ success: false, message: 'Grup tidak ditemukan.' });
+
+    // 1. Reset unread count
+    await Conversation.findByIdAndUpdate(conversationId, {
+      [`unread_counts.${userId}`]: 0
+    });
+
+    // 2. Tandai notifikasi chat sebagai terbaca
+    await markChatAsRead(userId);
+
+    // 3. Update badge realtime
+    const unreadData = await getUnreadSummaryData(userId);
+    emitUnreadUpdate(userId, unreadData);
+
+    // 4. Update read_by untuk semua pesan yang belum terbaca oleh user ini
+    const messagesToUpdate = await Message.find({
+      conversation_id: conversationId,
+      sender_id: { $ne: userId },
+      read_by: { $ne: userId }
+    });
+
+    const totalParticipants = conv.participants.length;
+    for (const msg of messagesToUpdate) {
+      msg.read_by.addToSet(userId);
+      // Jika semua member sudah baca → status jadi 'read' (Ceklis Biru)
+      if (msg.read_by.length >= totalParticipants) {
+        msg.status = 'read';
+        emitMessageStatusUpdate(msg.sender_id, conversationId, 'read');
+      }
+      await msg.save();
+    }
+
+    return reply.send({ success: true, message: 'Pesan grup ditandai sebagai dibaca.' });
+  } catch (error) {
+    return reply.status(500).send({ success: false, message: 'Gagal menandai pesan.' });
   }
 }

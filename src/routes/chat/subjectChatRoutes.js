@@ -5,7 +5,8 @@ import {
   getGroupMessages,
   deleteGroupMessage,
   setGroupTypingStatus,
-  getGroupDetail
+  getGroupDetail,
+  markGroupAsRead
 } from '../../controllers/chat/subjectChatController.js';
 import { getMedia } from '../../controllers/chat/chatController.js';
 
@@ -113,6 +114,16 @@ export default async function subjectChatRoutes(fastify) {
       security: [{ bearerAuth: [] }]
     }
   }, setGroupTypingStatus);
+
+  // Tandai Dibaca (Ceklis Biru - Read by Everyone)
+  fastify.patch('/groups/:conversationId/read', {
+    schema: {
+      tags: ['Chat Matkul'],
+      summary: 'Tandai semua pesan grup matkul sebagai dibaca (Ceklis Biru)',
+      params: { type: 'object', properties: { conversationId: { type: 'string' } } },
+      security: [{ bearerAuth: [] }]
+    }
+  }, markGroupAsRead);
 
   fastify.get('/media/:folder/:filename', {
     schema: {
