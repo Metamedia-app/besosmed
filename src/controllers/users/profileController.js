@@ -27,6 +27,9 @@ export async function getMe(request, reply) {
         role: user.role || 'user', // Tambahkan fallback
         bio: user.bio,
         avatar_url: user.avatar_url,
+        tempat_lahir: user.tempat_lahir || '',
+        tanggal_lahir: user.tanggal_lahir || '',
+        agama: user.agama || '',
         is_online: user.is_online,
         createdAt: user.createdAt
       }
@@ -227,7 +230,7 @@ export async function getUserProfile(request, reply) {
 
   // 1. Ambil data user target
   const targetUser = await User.findById(targetId)
-    .select('nim nama program_studi status_mahasiswa jenis_kelamin bio avatar_url followers_count following_count createdAt')
+    .select('nim nama program_studi role status_mahasiswa jenis_kelamin bio avatar_url followers_count following_count tempat_lahir tanggal_lahir agama createdAt')
     .lean();
 
   if (!targetUser) {
