@@ -110,11 +110,53 @@ export async function getMyCommunities(request, reply) {
       type: 'community'
     })
     .populate('creator_id', 'nama nim avatar_url')
+    .populate({
+      path: 'last_message',
+      select: 'body sender_id createdAt is_deleted_for_everyone deleted_by',
+    })
     .sort({ updatedAt: -1 })
     .lean();
 
-    return reply.send({ success: true, data: communities });
+    const formatted = await Promise.all(communities.map(async c => {
+      const userClearedAt = c.cleared_at?.[userId] || new Date(0);
+      
+      let finalLastMessage = c.last_message;
+
+      // CEK: Apakah pesan terakhir valid untuk user ini?
+      const isInvalid = !finalLastMessage || 
+                        (finalLastMessage.deleted_by && finalLastMessage.deleted_by.includes(userId)) || 
+                        (finalLastMessage.createdAt && finalLastMessage.createdAt < userClearedAt);
+
+      if (isInvalid) {
+        // Cari pesan terakhir yang BENAR-BENAR valid untuk user ini di komunitas ini
+        finalLastMessage = await Message.findOne({
+          conversation_id: c._id,
+          deleted_by: { $ne: userId },
+          createdAt: { $gt: userClearedAt }
+        }).sort({ createdAt: -1 });
+      }
+
+      // Dekripsi pesan terakhir untuk preview
+      let lastMessagePreview = '';
+      if (finalLastMessage) {
+        lastMessagePreview = finalLastMessage.is_deleted_for_everyone 
+          ? 'Pesan telah ditarik' 
+          : decryptMessage(finalLastMessage.body);
+      }
+
+      return {
+        ...c,
+        creator: c.creator_id,
+        creator_id: undefined,
+        last_message: lastMessagePreview,
+        last_message_at: finalLastMessage ? finalLastMessage.createdAt : c.updatedAt,
+        unread_count: c.unread_counts?.[userId] || 0,
+      };
+    }));
+
+    return reply.send({ success: true, data: formatted });
   } catch (error) {
+    request.log.error(error);
     return reply.status(500).send({ success: false, message: 'Gagal mengambil daftar komunitas.' });
   }
 }
