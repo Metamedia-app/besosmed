@@ -6,6 +6,7 @@ import {
   deleteMessage, 
   clearConversation,
   deleteConversation,
+  getConversationWithUser,
   getMedia,
   markInboxAsRead
 } from '../../controllers/chat/chatController.js';
@@ -33,6 +34,16 @@ export default async function chatRoutes(fastify) {
         security: [{ bearerAuth: [] }]
       }
     }, getConversations);
+
+    // Get or Create Conversation with specific user (Direct DM from Profile)
+    protectedRoutes.get('/conversations/with-user/:targetUserId', {
+      schema: {
+        tags: ['Chat Inbox'],
+        summary: 'Mendapatkan ID Percakapan dengan user tertentu (Direct DM dari Profil)',
+        params: { type: 'object', properties: { targetUserId: { type: 'string' } } },
+        security: [{ bearerAuth: [] }]
+      }
+    }, getConversationWithUser);
 
     // Ambil Riwayat Chat
     protectedRoutes.get('/conversations/:conversationId/messages', {

@@ -464,8 +464,52 @@ export async function deleteConversation(request, reply) {
     });
 
   } catch (error) {
-    request.log.error(error);
     return reply.status(500).send({ success: false, message: 'Gagal menghapus percakapan.' });
+  }
+}
+
+/**
+ * Mendapatkan ID Percakapan dengan user tertentu (Direct DM dari Profil)
+ * Jika sudah ada, kembalikan ID-nya. Jika belum, buat baru.
+ */
+export async function getConversationWithUser(request, reply) {
+  const userId = request.user.id;
+  const { targetUserId } = request.params;
+
+  try {
+    // 1. Validasi: Jangan chat diri sendiri
+    if (userId === targetUserId) {
+      return reply.status(400).send({ success: false, message: 'Anda tidak dapat memulai percakapan dengan diri sendiri.' });
+    }
+
+    // 2. Cari apakah sudah ada percakapan pribadi (inbox) antara dua user ini
+    let conv = await Conversation.findOne({
+      type: 'inbox',
+      participants: { $all: [userId, targetUserId] }
+    });
+
+    let isNew = false;
+    if (!conv) {
+      // 3. Jika belum ada, buat baru (Opsi A sesuai permintaan User)
+      conv = await Conversation.create({
+        type: 'inbox',
+        participants: [userId, targetUserId]
+      });
+      isNew = true;
+    }
+
+    return reply.send({
+      success: true,
+      message: isNew ? 'Percakapan baru berhasil dibuat' : 'Percakapan ditemukan',
+      data: {
+        conversation_id: conv._id,
+        is_new: isNew
+      }
+    });
+
+  } catch (error) {
+    request.log.error(error);
+    return reply.status(500).send({ success: false, message: 'Terjadi kesalahan saat memproses permintaan DM.' });
   }
 }
 
