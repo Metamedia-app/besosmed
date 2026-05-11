@@ -422,6 +422,54 @@ export async function clearConversation(request, reply) {
 }
 
 /**
+ * Menghapus percakapan secara permanen (Hard Delete)
+ * Menghapus Percakapan, Pesan, dan File di R2
+ */
+export async function deleteConversation(request, reply) {
+  const userId = request.user.id;
+  const { conversationId } = request.params;
+
+  try {
+    // 1. Cari percakapan & pastikan user adalah peserta
+    const conv = await Conversation.findOne({ _id: conversationId, participants: userId });
+    if (!conv) {
+      return reply.status(404).send({ success: false, message: 'Percakapan tidak ditemukan.' });
+    }
+
+    // 2. Ambil semua pesan untuk menghapus file di R2
+    const messages = await Message.find({ conversation_id: conversationId });
+    
+    for (const msg of messages) {
+      if (msg.attachments && msg.attachments.length > 0) {
+        for (const attachment of msg.attachments) {
+          if (attachment.key) {
+            // Hapus file dari R2 Cloud Storage
+            await deleteFile(attachment.key).catch(err => {
+              console.error(`[R2_DELETE_ERR] Gagal hapus file ${attachment.key}:`, err);
+            });
+          }
+        }
+      }
+    }
+
+    // 3. Hapus semua pesan dari MongoDB
+    await Message.deleteMany({ conversation_id: conversationId });
+
+    // 4. Hapus Dokumen Percakapan itu sendiri (Agar hilang dari list)
+    await Conversation.findByIdAndDelete(conversationId);
+
+    return reply.send({ 
+      success: true, 
+      message: 'Percakapan dan seluruh isinya telah dihapus permanen.' 
+    });
+
+  } catch (error) {
+    request.log.error(error);
+    return reply.status(500).send({ success: false, message: 'Gagal menghapus percakapan.' });
+  }
+}
+
+/**
  * Proxy Media: Ambil dari R2 -> Dekripsi -> Kirim ke User
  * URL: /api/v1/chat/media/:folder/:filename
  */

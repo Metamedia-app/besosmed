@@ -5,6 +5,7 @@ import {
   setTypingStatus, 
   deleteMessage, 
   clearConversation,
+  deleteConversation,
   getMedia,
   markInboxAsRead
 } from '../../controllers/chat/chatController.js';
@@ -110,6 +111,16 @@ export default async function chatRoutes(fastify) {
         security: [{ bearerAuth: [] }]
       }
     }, clearConversation);
+    
+    // Hapus Percakapan (Hard Delete)
+    protectedRoutes.delete('/conversations/:conversationId', {
+      schema: {
+        tags: ['Chat Inbox'],
+        summary: 'Menghapus percakapan secara permanen (DB & R2)',
+        params: { type: 'object', properties: { conversationId: { type: 'string' } } },
+        security: [{ bearerAuth: [] }]
+      }
+    }, deleteConversation);
 
     // Tandai Dibaca (Ceklis Biru)
     protectedRoutes.patch('/conversations/:conversationId/read', {
