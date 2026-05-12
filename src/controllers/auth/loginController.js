@@ -56,6 +56,7 @@ export async function login(request, reply) {
         id: user._id,
         nim: user.nim,
         nama: user.nama,
+        email: user.email,
         program_studi: user.program_studi,
         jenis_kelamin: user.jenis_kelamin,
         status_mahasiswa: user.status_mahasiswa,

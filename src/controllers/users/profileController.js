@@ -22,9 +22,11 @@ export async function getMe(request, reply) {
         _id: user._id,
         nim: user.nim,
         nama: user.nama,
+        email: user.email,
         program_studi: user.program_studi,
+        jenis_kelamin: user.jenis_kelamin,
         status_mahasiswa: user.status_mahasiswa,
-        role: user.role || 'user', // Tambahkan fallback
+        role: user.role || 'user',
         bio: user.bio,
         avatar_url: user.avatar_url,
         tempat_lahir: user.tempat_lahir || '',

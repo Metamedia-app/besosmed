@@ -41,6 +41,7 @@ const loginSchema = {
                 id: { type: 'string' },
                 nim: { type: 'string' },
                 nama: { type: 'string' },
+                email: { type: 'string' },
                 program_studi: { type: 'string' },
                 jenis_kelamin: { type: 'string' },
                 status_mahasiswa: { type: 'string' },
@@ -116,11 +117,12 @@ async function authRoutes(fastify) {
                     id: { type: 'string' },
                     nim: { type: 'string' },
                     nama: { type: 'string' },
+                    email: { type: 'string' },
                     program_studi: { type: 'string' },
+                    jenis_kelamin: { type: 'string' },
                     role: { type: 'string' },
                     status_mahasiswa: { type: 'string' },
                     avatar_url: { type: 'string' },
-                    email: { type: 'string' }
                   }
                 }
               }
