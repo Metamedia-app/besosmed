@@ -134,7 +134,7 @@ export async function repostPost(request, reply) {
 
     // --- KIRIM PUSH NOTIFICATION (FCM) ---
     triggerPushNotification(originalPost.author_id, {
-      title: 'BeSosmed',
+      title: 'Notifikasi',
       body: message,
       data: {
         type: 'repost',

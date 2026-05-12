@@ -226,7 +226,7 @@ export async function addComment(request, reply) {
 
       // --- KIRIM PUSH NOTIFICATION (FCM) ---
       triggerPushNotification(parentComment.author_id, {
-        title: 'BeSosmed',
+        title: 'Notifikasi',
         body: message,
         data: {
           type: 'comment',
@@ -305,7 +305,7 @@ export async function addComment(request, reply) {
 
       // --- KIRIM PUSH NOTIFICATION (FCM) ---
       triggerPushNotification(post.author_id, {
-        title: 'BeSosmed',
+        title: 'Notifikasi',
         body: message,
         data: {
           type: 'comment',

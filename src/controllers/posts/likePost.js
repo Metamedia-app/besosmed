@@ -99,7 +99,7 @@ export async function likePost(request, reply) {
 
       // --- KIRIM PUSH NOTIFICATION (FCM) ---
       triggerPushNotification(post.author_id, {
-        title: 'BeSosmed',
+        title: 'Notifikasi',
         body: message,
         data: {
           type: 'like',

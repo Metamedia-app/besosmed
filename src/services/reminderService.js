@@ -58,7 +58,7 @@ async function sendReminder(assignment, type, timeText) {
     const conv = await Conversation.findById(assignment.conversation_id).select('participants');
     if (conv && conv.participants.length > 0) {
       triggerPushNotificationBatch(conv.participants, {
-        title: 'BeSosmed Akademik',
+        title: 'Notifikasi',
         body: message,
         data: {
           type: 'assignment',

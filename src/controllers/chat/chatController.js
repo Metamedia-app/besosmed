@@ -261,7 +261,7 @@ export async function sendMessage(request, reply) {
 
         // 9. Kirim Push Notification via FCM
         triggerPushNotification(recipient, {
-          title: 'BeSosmed',
+          title: 'Notifikasi',
           body: 'Ada pesan baru untukmu.',
           data: {
             type: 'chat',

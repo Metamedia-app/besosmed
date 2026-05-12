@@ -358,7 +358,7 @@ export async function sendCommunityMessage(request, reply) {
 
     // 8. Kirim Push Notification via FCM ke SEMUA penerima
     triggerPushNotificationBatch(otherParticipants, {
-      title: 'BeSosmed',
+      title: 'Notifikasi',
       body: 'Ada pesan baru untukmu.',
       data: {
         type: 'chat',

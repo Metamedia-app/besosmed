@@ -98,7 +98,7 @@ export async function followUser(request, reply) {
 
     // --- KIRIM PUSH NOTIFICATION (FCM) ---
     triggerPushNotification(followingId, {
-      title: 'BeSosmed',
+      title: 'Notifikasi',
       body: message,
       data: {
         type: 'follow',
