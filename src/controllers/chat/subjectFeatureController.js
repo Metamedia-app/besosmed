@@ -4,6 +4,7 @@ import Conversation from '../../models/Conversation.js';
 import { encryptBuffer } from '../../services/encryptionService.js';
 import { uploadFile } from '../../services/r2Service.js';
 import { emitAssignmentReminder, emitMuteStatus } from '../../services/wsService.js';
+import { triggerPushNotificationBatch } from '../../services/notificationService.js';
 
 /**
  * 1. Upload Materi Silabus (Dosen Only)
@@ -138,6 +139,43 @@ export async function createAssignment(request, reply) {
       attachments,
       created_by: lecturerId
     });
+
+    // ── NOTIFIKASI TUGAS BARU (FCM BROADCAST) ───────────────────────────
+    // Dilakukan secara background agar tidak menghambat response
+    (async () => {
+      try {
+        console.log(`\n[NEW_ASSIGNMENT] 📝 Memproses Notifikasi untuk Tugas: "${title}"`);
+        
+        // 1. Ambil data grup matkul & pesertanya
+        const conv = await Conversation.findById(conversationId).select('participants name').lean();
+        
+        if (conv && conv.participants.length > 0) {
+          // 2. Saring: hanya kirim ke Mahasiswa (bukan dosen pengirim)
+          const studentIds = conv.participants.filter(p => p.toString() !== lecturerId);
+          
+          if (studentIds.length > 0) {
+            console.log(`[NEW_ASSIGNMENT] 🚀 Mengirim FCM ke ${studentIds.length} mahasiswa di grup "${conv.name || 'Matkul'}"...`);
+            
+            await triggerPushNotificationBatch(studentIds, {
+              title: `Tugas Baru: ${title}`,
+              body: `Dosen telah memposting tugas baru di grup ${conv.name || 'Matkul'}. Silakan cek detailnya!`,
+              data: {
+                type: 'NEW_ASSIGNMENT',
+                conversation_id: conversationId,
+                assignment_id: assignment._id.toString()
+              }
+            });
+            
+            console.log(`[NEW_ASSIGNMENT] ✅ Notifikasi berhasil dikirim ke antrian FCM.\n`);
+          } else {
+            console.log(`[NEW_ASSIGNMENT] ℹ️ Skip: Tidak ada mahasiswa lain di grup ini.\n`);
+          }
+        }
+      } catch (err) {
+        console.error(`[NEW_ASSIGNMENT] ❌ Gagal mengirim notifikasi:`, err.message);
+      }
+    })();
+    // ───────────────────────────────────────────────────────────────────
 
     return reply.status(201).send({
       success: true,
