@@ -73,6 +73,7 @@ export async function addComment(request, reply) {
 
     // Cari semua admin
     const admins = await User.find({ role: 'admin' }).select('_id');
+    const adminUnreadCount = await Report.countDocuments({ status: 'pending' });
     
     admins.forEach(admin => {
       sendToUser(admin._id, {
@@ -80,7 +81,8 @@ export async function addComment(request, reply) {
         data: {
           title: '🤬 Komentar Toxic!',
           message: `${request.user.nama} mengirim komentar kasar.`,
-          comment: comment
+          comment: comment,
+          unread_count: adminUnreadCount
         }
       });
     });

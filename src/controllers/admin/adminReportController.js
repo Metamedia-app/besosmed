@@ -68,7 +68,14 @@ export async function getReportsAdmin(request, reply) {
       .limit(parseInt(limit))
       .skip(parseInt(skip));
 
-    return reply.send({ success: true, data: reports });
+    // Tambahkan hitungan laporan pending (unread)
+    const unreadCount = await Report.countDocuments({ status: 'pending' });
+
+    return reply.send({ 
+      success: true, 
+      data: reports,
+      unread_count: unreadCount 
+    });
   } catch (error) {
     console.error('GET_REPORTS_ERROR:', error);
     return reply.status(500).send({ success: false, message: 'Gagal mengambil daftar laporan.' });
@@ -98,7 +105,15 @@ export async function updateReportStatus(request, reply) {
       return reply.status(404).send({ success: false, message: 'Laporan tidak ditemukan.' });
     }
 
-    return reply.send({ success: true, message: 'Status laporan berhasil diperbarui.', data: report });
+    // Ambil unread_count terbaru setelah status diupdate
+    const unreadCount = await Report.countDocuments({ status: 'pending' });
+
+    return reply.send({ 
+      success: true, 
+      message: 'Status laporan berhasil diperbarui.', 
+      data: report,
+      unread_count: unreadCount
+    });
   } catch (error) {
     return reply.status(500).send({ success: false, message: 'Gagal memperbarui status laporan.' });
   }

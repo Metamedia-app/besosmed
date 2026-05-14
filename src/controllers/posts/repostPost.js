@@ -1,4 +1,5 @@
 import Notification from '../../models/Notification.js';
+import Post from '../../models/Post.js';
 import { countTotalUnreadItems, triggerPushNotification } from '../../services/notificationService.js';
 import { emitRepostUpdate, emitNotification, emitNewPost, emitShareUpdate } from '../../services/wsService.js';
 
