@@ -35,9 +35,11 @@ export async function getFeed(request, reply) {
   }
 
   // 3. Eksekusi kueri
-  const posts = await Post.find(filter)
+  const poolLimit = before ? limit : limit * 3; // Pool kandidat lebih besar saat reload/first-page
+  
+  let posts = await Post.find(filter)
     .sort({ createdAt: -1 })
-    .limit(limit)
+    .limit(poolLimit)
     .populate('author_id', 'nim nama avatar_url program_studi')
     .populate({
       path: 'original_post_id',
@@ -45,6 +47,31 @@ export async function getFeed(request, reply) {
       populate: { path: 'author_id', select: 'nim nama avatar_url' },
     })
     .lean();
+
+  // --- ALGORITMA SAPWS (Social Affinity & Popularity Weighted Shuffling) ---
+  // Terapkan rekomendasi acak berbobot hanya saat reload/halaman pertama
+  if (!before && posts.length > 0) {
+    posts.forEach((p) => {
+      const ageInMinutes = (Date.now() - new Date(p.createdAt).getTime()) / (1000 * 60);
+      
+      // A. Recency Score: Post baru dapat poin tinggi (menyusut 1 poin tiap 30 menit)
+      const recencyScore = Math.max(0, 100 - (ageInMinutes / 30));
+      
+      // B. Engagement Score: Konten populer didongkrak (Like x10, Komen x5, Repost x8)
+      const engagementScore = ((p.likes_count || 0) * 10) + ((p.comments_count || 0) * 5) + ((p.reposts_count || 0) * 8);
+      
+      // C. Random Noise: Nilai acak dinamis agar setiap reload terasa fresh (0 - 40 poin)
+      const randomNoise = Math.random() * 40;
+      
+      p.sapws_score = recencyScore + engagementScore + randomNoise;
+    });
+
+    // Urutkan berdasarkan total skor SAPWS tertinggi
+    posts.sort((a, b) => b.sapws_score - a.sapws_score);
+    // Potong sesuai limit yang diminta
+    posts = posts.slice(0, limit);
+  }
+  // --------------------------------------------------------------------------
 
   // 4. Cek status like & repost untuk masing-masing post
   const postIds = posts.map((p) => p._id);
