@@ -14,7 +14,7 @@ Backend API untuk aplikasi sosial media, dibangun dengan **Fastify**, **MongoDB 
 
 ---
 
-## Prasyarat
+## Prasyarat1
 
 Pastikan sudah ter-install di komputer kamu:
 
