@@ -12,6 +12,22 @@ export async function getFeed(request, reply) {
   const limit = Math.min(parseInt(request.query.limit) || 10, 30);
   const before = request.query.before;
 
+  // --- REDIS CACHE: Cek laci penyimpanan (Cache Hit) ---
+  const cacheKey = `feed:${userId}:${limit}:${before || 'latest'}`;
+  if (request.server.redis) {
+    try {
+      const cached = await request.server.redis.get(cacheKey);
+      if (cached) {
+        return reply.send(JSON.parse(cached));
+      }
+    } catch (err) {
+      request.log.warn(`Redis GET Error: ${err.message}`);
+      // Lanjut ke MongoDB jika Redis gagal (Fail-safe)
+    }
+  }
+  // ----------------------------------------------------
+
+
   // 1. Ambil daftar user yang diikuti (following)
   const follows = await Follow.find({ follower_id: userId }).select('following_id').lean();
   const followingIds = follows.map(f => f.following_id);
@@ -101,7 +117,7 @@ export async function getFeed(request, reply) {
 
   const nextCursor = posts.length === limit ? posts[posts.length - 1].createdAt.toISOString() : null;
 
-  return reply.send({
+  const responseData = {
     success: true,
     data: {
       posts: formatted,
@@ -109,5 +125,18 @@ export async function getFeed(request, reply) {
       has_more: !!nextCursor,
       count: posts.length
     },
-  });
+  };
+
+  // --- REDIS CACHE: Simpan ke laci (Cache Miss -> Set) ---
+  if (request.server.redis) {
+    try {
+      // Simpan dengan Time-To-Live (TTL) 60 detik
+      await request.server.redis.set(cacheKey, JSON.stringify(responseData), 'EX', 60);
+    } catch (err) {
+      request.log.warn(`Redis SET Error: ${err.message}`);
+    }
+  }
+  // ----------------------------------------------------
+
+  return reply.send(responseData);
 }

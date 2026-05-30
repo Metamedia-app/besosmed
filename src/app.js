@@ -9,6 +9,7 @@ import jwtPlugin from './plugins/jwt.js';
 import rateLimitPlugin from './plugins/rateLimit.js';
 import socketioPlugin from './plugins/socketio.js';
 import multipartPlugin from './plugins/multipart.js';
+import redisPlugin from './plugins/redis.js';
 
 // Routes
 import healthRoutes from './routes/health.js';
@@ -48,6 +49,7 @@ export async function buildApp(opts = {}) {
   await app.register(rateLimitPlugin);
   await app.register(socketioPlugin);
   await app.register(multipartPlugin);
+  await app.register(redisPlugin);
 
   // ── Routes ─────────────────────────────────────────────
   await app.register(healthRoutes);

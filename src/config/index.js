@@ -9,6 +9,10 @@ const config = {
   // MongoDB
   mongoUri: process.env.MONGO_URI || '',
 
+  // Redis
+  redisUrl: process.env.REDIS_URL || '',
+
+
   // JWT
   jwtSecret: process.env.JWT_SECRET || 'changeme_super_secret_wajib_ganti',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '30d',
