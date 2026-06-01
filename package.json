@@ -24,6 +24,7 @@
     "@fastify/swagger": "^9.7.0",
     "@fastify/swagger-ui": "^5.2.5",
     "@fastify/websocket": "^11.2.0",
+    "@socket.io/redis-adapter": "^8.3.0",
     "@wick_studio/fastify-socket.io": "^5.1.0",
     "bcrypt": "^6.0.0",
     "dotenv": "^17.3.1",

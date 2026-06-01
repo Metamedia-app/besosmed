@@ -2,6 +2,8 @@ import fp from 'fastify-plugin';
 import fastifySocketIO from '@wick_studio/fastify-socket.io';
 import { setIO } from '../services/wsService.js';
 import Conversation from '../models/Conversation.js';
+import { createAdapter } from '@socket.io/redis-adapter';
+
 
 async function socketioPlugin(fastify) {
   await fastify.register(fastifySocketIO, {
@@ -16,7 +18,14 @@ async function socketioPlugin(fastify) {
     if (err) throw err;
 
     const io = fastify.io;
-    
+
+    // REDIS PUB/SUB ADAPTER (Fail-Safe: hanya aktif jika REDIS_URL terpasang)
+    if (fastify.redis) {
+      const pubClient = fastify.redis.duplicate();
+      io.adapter(createAdapter(fastify.redis, pubClient));
+      fastify.log.info('Socket.io Redis Pub/Sub Adapter berhasil diaktifkan!');
+    }
+
     // Kirim instance IO ke service agar bisa dipakai di controller manapun
     setIO(io);
 
