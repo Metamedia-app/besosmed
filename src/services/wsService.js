@@ -27,7 +27,7 @@ export async function isOnline(userId) {
 }
 
 /**
- * Putuskan paksa (Force Disconnect) semua koneksi aktif dari user tertentu
+ * Putuskan paksa (Force Disconnect) semua koneksi aktif dari user tertentu bgian penting
  */
 export async function forceDisconnectUser(userId) {
   if (!io) return;
