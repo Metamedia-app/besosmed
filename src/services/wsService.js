@@ -26,6 +26,22 @@ export async function isOnline(userId) {
   return sockets.length > 0;
 }
 
+/**
+ * Putuskan paksa (Force Disconnect) semua koneksi aktif dari user tertentu
+ */
+export async function forceDisconnectUser(userId) {
+  if (!io) return;
+  try {
+    const sockets = await io.in(`user:${userId.toString()}`).fetchSockets();
+    sockets.forEach((s) => s.disconnect(true));
+    if (sockets.length > 0) {
+      console.log(`[Socket.io] 🛑 Force disconnected ${sockets.length} active sockets for banned user ${userId}`);
+    }
+  } catch (error) {
+    console.error(`[Socket.io] Error forcing disconnect:`, error.message);
+  }
+}
+
 // ── Send ke Satu User (via Room Pribadi) ───────────────────────────────────────
 
 export function sendToUser(userId, payload) {

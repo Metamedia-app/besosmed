@@ -29,8 +29,8 @@ async function socketioPlugin(fastify) {
     // Kirim instance IO ke service agar bisa dipakai di controller manapun
     setIO(io);
 
-    // Middleware Autentikasi JWT
-    io.use((socket, next) => {
+    // Middleware Autentikasi JWT (dengan Real-Time DB Check)
+    io.use(async (socket, next) => {
       const token = socket.handshake.auth?.token || socket.handshake.query?.token;
       
       if (!token) {
@@ -39,10 +39,18 @@ async function socketioPlugin(fastify) {
 
       try {
         const decoded = fastify.jwt.verify(token);
+        
+        // FULL-DUPLEX SECURITY CHECK: Tolak koneksi jika user di-ban
+        const { default: User } = await import('../models/User.js');
+        const user = await User.findById(decoded.id).select('is_banned');
+        if (!user || user.is_banned) {
+          return next(new Error('Authentication error: Akun Anda telah ditangguhkan (Banned) oleh Admin.'));
+        }
+
         socket.user = decoded; // Simpan data user di socket
         next();
       } catch (err) {
-        return next(new Error('Authentication error: Token invalid'));
+        return next(new Error('Authentication error: Token invalid atau kadaluarsa'));
       }
     });
 

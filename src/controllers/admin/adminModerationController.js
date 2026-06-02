@@ -138,9 +138,12 @@ export async function banUser(request, reply) {
     user.is_banned = true;
     await user.save();
 
+    // FULL-DUPLEX FORCE DISCONNECT: Lakukan pemutusan paksa socket jika user sedang online
+    await wsService.forceDisconnectUser(id);
+
     return reply.send({
       success: true,
-      message: `Akun ${user.nama} berhasil di-ban.`,
+      message: `Akun ${user.nama} berhasil di-ban. Koneksi real-time diputus secara instan.`,
     });
   } catch (error) {
     return reply.status(500).send({ success: false, message: 'Gagal ban user.' });
