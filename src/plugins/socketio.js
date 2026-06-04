@@ -31,7 +31,10 @@ async function socketioPlugin(fastify) {
 
     // Middleware Autentikasi JWT (dengan Real-Time DB Check)
     io.use(async (socket, next) => {
-      const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+      // Baca token dari berbagai sumber (auth object, query param, atau HTTP header Authorization)
+      const authHeader = socket.handshake.headers?.authorization;
+      const headerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+      const token = socket.handshake.auth?.token || socket.handshake.query?.token || headerToken;
       
       if (!token) {
         return next(new Error('Authentication error: Token missing'));
