@@ -31,12 +31,14 @@ async function socketioPlugin(fastify) {
 
     // Middleware Autentikasi JWT (dengan Real-Time DB Check)
     io.use(async (socket, next) => {
-      // Baca token dari berbagai sumber (auth object, query param, atau HTTP header Authorization)
       const authHeader = socket.handshake.headers?.authorization;
       const headerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
       const token = socket.handshake.auth?.token || socket.handshake.query?.token || headerToken;
       
+      console.log(`[Socket.io Debug] Incoming request. Token found? ${!!token}`);
+
       if (!token) {
+        console.log(`[Socket.io Debug] Connection rejected: Token missing`);
         return next(new Error('Authentication error: Token missing'));
       }
 
@@ -46,13 +48,16 @@ async function socketioPlugin(fastify) {
         // FULL-DUPLEX SECURITY CHECK: Tolak koneksi jika user di-ban
         const { default: User } = await import('../models/User.js');
         const user = await User.findById(decoded.id).select('is_banned');
+        
         if (!user || user.is_banned) {
+          console.log(`[Socket.io Debug] Connection rejected: User Banned!`);
           return next(new Error('Authentication error: Akun Anda telah ditangguhkan (Banned) oleh Admin.'));
         }
 
         socket.user = decoded; // Simpan data user di socket
         next();
       } catch (err) {
+        console.log(`[Socket.io Debug] Token invalid error: ${err.message}`);
         return next(new Error('Authentication error: Token invalid atau kadaluarsa'));
       }
     });
