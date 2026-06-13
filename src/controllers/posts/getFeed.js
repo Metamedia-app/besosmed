@@ -40,7 +40,10 @@ export async function getFeed(request, reply) {
     $or: [
       { author_id: { $in: followingIds } }, // Teman
       { author_id: userId },                // Diri Sendiri
-      { likes_count: { $gte: 2 } }          // Discovery: Postingan populer (min 2 likes)
+      { 
+        visibility: 'public',               // FYP: Harus disetting publik oleh usernya
+        likes_count: { $gte: 2 }            // Discovery: Postingan populer (min 2 likes)
+      }
     ]
   };
 

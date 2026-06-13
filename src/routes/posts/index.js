@@ -44,6 +44,11 @@ async function postRoutes(fastify) {
         type: 'object',
         properties: {
           caption: { type: 'string', description: 'Teks postingan' },
+          visibility: { 
+            type: 'string', 
+            enum: ['public', 'followers'],
+            description: 'Visibilitas postingan: public (bisa masuk FYP) atau followers (hanya teman). Default: public' 
+          },
           files: { 
             type: 'array',
             items: {

@@ -28,6 +28,11 @@ const postSchema = new mongoose.Schema(
       type: [mediaSchema],
       default: [],
     },
+    visibility: {
+      type: String,
+      enum: ['public', 'followers'],
+      default: 'public',
+    },
     // Repost
     type: {
       type: String,

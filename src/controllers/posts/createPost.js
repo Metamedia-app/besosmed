@@ -10,6 +10,7 @@ export async function createPost(request, reply) {
   const isMultipart = contentType.includes('multipart/form-data');
 
   let caption = '';
+  let visibility = 'public'; // default
   const mediaList = [];
 
   if (isMultipart) {
@@ -19,6 +20,8 @@ export async function createPost(request, reply) {
     for await (const part of parts) {
       if (part.type === 'field' && part.fieldname === 'caption') {
         caption = part.value?.trim() || '';
+      } else if (part.type === 'field' && part.fieldname === 'visibility') {
+        visibility = part.value?.trim() || 'public';
       } else if (part.type === 'file') {
         const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/quicktime', 'video/webm'];
         if (!allowed.includes(part.mimetype)) {
@@ -41,6 +44,7 @@ export async function createPost(request, reply) {
   } else {
     // JSON request (hanya teks)
     caption = request.body?.caption?.trim() || '';
+    visibility = request.body?.visibility?.trim() || 'public';
   }
 
   if (!caption && mediaList.length === 0) {
@@ -52,6 +56,7 @@ export async function createPost(request, reply) {
     caption,
     media: mediaList,
     type: 'original',
+    visibility, // Simpan gembok privasi
   });
 
   // Populate author untuk response & broadcast

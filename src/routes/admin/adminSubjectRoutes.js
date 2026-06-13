@@ -1,6 +1,8 @@
 import { 
   getAllSubjects, 
   createSubject, 
+  editSubject,
+  deleteSubject,
   addMembersToGroup,
   getAllGroups,
   getGroupMembers,
@@ -46,6 +48,39 @@ export default async function adminSubjectRoutes(fastify) {
       security: [{ bearerAuth: [] }]
     }
   }, createSubject);
+
+  fastify.put('/subjects/:id', {
+    schema: {
+      tags: ['Admin Dashboard'],
+      summary: 'Admin: Edit Master Data Mata Kuliah',
+      params: {
+        type: 'object',
+        properties: { id: { type: 'string' } }
+      },
+      body: {
+        type: 'object',
+        properties: {
+          code: { type: 'string' },
+          name: { type: 'string' },
+          academic_year: { type: 'string' },
+          lecturer_name: { type: 'string' }
+        }
+      },
+      security: [{ bearerAuth: [] }]
+    }
+  }, editSubject);
+
+  fastify.delete('/subjects/:id', {
+    schema: {
+      tags: ['Admin Dashboard'],
+      summary: 'Admin: Hapus Master Data Mata Kuliah dari Dropdown',
+      params: {
+        type: 'object',
+        properties: { id: { type: 'string' } }
+      },
+      security: [{ bearerAuth: [] }]
+    }
+  }, deleteSubject);
 
   // Monitoring Semua Grup Chat
   fastify.get('/groups', {

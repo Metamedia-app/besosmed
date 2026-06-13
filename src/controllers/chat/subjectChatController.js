@@ -8,6 +8,7 @@ import { emitGroupMessage, emitGroupTypingStatus, emitUnreadUpdate, emitMessageS
 import { createChatNotificationsBatch, markChatAsRead, triggerPushNotificationBatch } from '../../services/notificationService.js';
 import { getUnreadSummaryData } from './unreadController.js';
 import { containsToxicWords } from '../../utils/badWords.js';
+import * as XLSX from 'xlsx';
 
 /**
  * Sinkronisasi Data Mahasiswa & MK dari JSON
@@ -564,5 +565,145 @@ export async function markGroupAsRead(request, reply) {
     return reply.send({ success: true, message: 'Pesan grup ditandai sebagai dibaca.' });
   } catch (error) {
     return reply.status(500).send({ success: false, message: 'Gagal menandai pesan.' });
+  }
+}
+
+/**
+ * Impor Data Grup Matkul Massal via Excel
+ * POST /api/v1/chat-matkul/import
+ */
+export async function importSubjectsFromExcel(request, reply) {
+  // Hanya admin yang diizinkan
+  if (request.user.role !== 'admin') {
+    return reply.status(403).send({ success: false, message: 'Akses ditolak.' });
+  }
+
+  const parts = request.parts();
+  let buffer = null;
+
+  for await (const part of parts) {
+    if (part.type === 'file') {
+      const chunks = [];
+      for await (const chunk of part.file) {
+        chunks.push(chunk);
+      }
+      buffer = Buffer.concat(chunks);
+      break;
+    }
+  }
+
+  if (!buffer) {
+    return reply.status(400).send({ success: false, message: 'File Excel tidak ditemukan.' });
+  }
+
+  try {
+    const workbook = XLSX.read(buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    // Konversi baris excel menjadi JSON
+    const rows = XLSX.utils.sheet_to_json(sheet);
+
+    let successCount = 0;
+
+    for (const row of rows) {
+      const {
+        subject_code,
+        subject_name,
+        academic_year,
+        lecturer_nim,
+        expires_at,
+        students
+      } = row;
+
+      // Skip jika data kosongan
+      if (!subject_code || !subject_name) continue;
+
+      let expiresAt = null;
+      if (expires_at) {
+        expiresAt = new Date(expires_at);
+        expiresAt.setHours(23, 59, 59, 999);
+      }
+
+      // Parsing NIM mahasiswa dari string koma-separated misal: "123, 456"
+      let studentNims = [];
+      if (typeof students === 'string') {
+        studentNims = students.split(',').map(s => s.trim()).filter(Boolean);
+      } else if (typeof students === 'number') {
+        studentNims = [students.toString()];
+      }
+
+      // Cari object ID mahasiswa DB
+      const studentDocs = await User.find({ nim: { $in: studentNims }, role: 'mahasiswa' }).select('_id');
+      const studentIds = studentDocs.map(s => s._id);
+
+      // Cari dosen DB
+      let lecturerId = null;
+      if (lecturer_nim) {
+        const lecturer = await User.findOne({ nim: lecturer_nim, role: 'dosen' });
+        if (lecturer) lecturerId = lecturer._id;
+      }
+
+      // 1. Buat / Update Mata Kuliah
+      let subject = await Subject.findOne({ code: subject_code });
+      if (!subject) {
+        subject = await Subject.create({
+          code: subject_code,
+          name: subject_name,
+          academic_year: academic_year || new Date().getFullYear().toString(),
+          lecturer_id: lecturerId,
+          expires_at: expiresAt
+        });
+      }
+
+      // 2. Buat / Update Room Chat
+      let conv = await Conversation.findOne({
+        type: 'subject',
+        subject_id: subject._id
+      });
+
+      const participants = [...studentIds];
+      if (lecturerId) participants.push(lecturerId);
+
+      if (!conv) {
+        const unreadCounts = {};
+        participants.forEach(pid => {
+          unreadCounts[pid.toString()] = 0;
+        });
+
+        conv = await Conversation.create({
+          type: 'subject',
+          subject_id: subject._id,
+          name: `MK: ${subject_name} (${subject_code})`,
+          participants: participants,
+          unread_counts: unreadCounts
+        });
+      } else {
+        const newParticipants = new Set([
+          ...conv.participants.map(p => p.toString()),
+          ...participants.map(p => p.toString())
+        ]);
+        
+        let existingUnread = conv.unread_counts || {};
+        newParticipants.forEach(pId => {
+          if (existingUnread[pId] === undefined) {
+             existingUnread[pId] = 0;
+          }
+        });
+
+        conv.participants = Array.from(newParticipants);
+        conv.unread_counts = existingUnread;
+        await conv.save();
+      }
+      
+      successCount++;
+    }
+
+    return reply.send({
+      success: true,
+      message: `${successCount} Grup Mata Kuliah berhasil diimpor & disinkronkan dari Excel.`
+    });
+  } catch (error) {
+    request.log.error(error);
+    return reply.status(500).send({ success: false, message: 'Terjadi kesalahan saat memproses file Excel.' });
   }
 }

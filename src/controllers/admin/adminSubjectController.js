@@ -144,3 +144,53 @@ export async function removeMemberFromGroup(request, reply) {
     return reply.status(500).send({ success: false, message: 'Gagal mengeluarkan member.' });
   }
 }
+
+/**
+ * Mengedit Data Master Mata Kuliah
+ * PUT /api/v1/admin/subjects/:id
+ */
+export async function editSubject(request, reply) {
+  const { id } = request.params;
+  const { code, name, academic_year, lecturer_name } = request.body;
+
+  try {
+    const subject = await Subject.findByIdAndUpdate(
+      id,
+      { code, name, academic_year, lecturer_name },
+      { new: true, runValidators: true }
+    );
+
+    if (!subject) {
+      return reply.status(404).send({ success: false, message: 'Mata kuliah tidak ditemukan.' });
+    }
+
+    return reply.send({ success: true, message: 'Mata kuliah berhasil diperbarui.', data: subject });
+  } catch (error) {
+    // Jika kode mata kuliah duplikat
+    if (error.code === 11000) {
+      return reply.status(400).send({ success: false, message: 'Kode mata kuliah sudah digunakan.' });
+    }
+    return reply.status(500).send({ success: false, message: 'Gagal memperbarui mata kuliah.' });
+  }
+}
+
+/**
+ * Menghapus Data Master Mata Kuliah
+ * DELETE /api/v1/admin/subjects/:id
+ */
+export async function deleteSubject(request, reply) {
+  const { id } = request.params;
+
+  try {
+    const subject = await Subject.findByIdAndDelete(id);
+
+    if (!subject) {
+      return reply.status(404).send({ success: false, message: 'Mata kuliah tidak ditemukan.' });
+    }
+
+    return reply.send({ success: true, message: 'Data master mata kuliah berhasil dihapus dari dropdown.' });
+  } catch (error) {
+    return reply.status(500).send({ success: false, message: 'Gagal menghapus mata kuliah.' });
+  }
+}
+
