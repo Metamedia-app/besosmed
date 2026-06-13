@@ -7,6 +7,7 @@ import { uploadFile, deleteFile } from '../../services/r2Service.js';
 import { emitGroupMessage, emitGroupTypingStatus, emitUnreadUpdate, emitMessageStatusUpdate } from '../../services/wsService.js';
 import { createChatNotificationsBatch, markChatAsRead, triggerPushNotificationBatch } from '../../services/notificationService.js';
 import { getUnreadSummaryData } from './unreadController.js';
+import { containsToxicWords } from '../../utils/badWords.js';
 
 /**
  * Sinkronisasi Data Mahasiswa & MK dari JSON
@@ -251,6 +252,11 @@ export async function sendGroupMessage(request, reply) {
           message: 'Grup Mata Kuliah sedang di-mute oleh Dosen. Anda tidak dapat mengirim pesan saat ini.'
         });
       }
+    }
+
+    // --- FILTER KATA KASAR ---
+    if (containsToxicWords(body)) {
+      return reply.status(400).send({ success: false, message: 'Pesanmu mengandung kata-kata yang tidak pantas. Mohon gunakan bahasa yang sopan.' });
     }
 
     // Enkripsi pesan teks

@@ -6,6 +6,7 @@ import { uploadFile, r2Client, GetObjectCommand, deleteFile } from '../../servic
 import { emitNewMessage, emitTypingStatus, emitUnreadUpdate, emitMessageStatusUpdate, isOnline } from '../../services/wsService.js';
 import { createChatNotification, markChatAsRead, triggerPushNotification } from '../../services/notificationService.js';
 import { getUnreadSummaryData } from './unreadController.js';
+import { containsToxicWords } from '../../utils/badWords.js';
 
 /**
  * Mengambil daftar percakapan (List Inbox)
@@ -217,6 +218,11 @@ export async function sendMessage(request, reply) {
           message: 'Grup sedang di-mute oleh Dosen. Anda tidak dapat mengirim pesan saat ini.'
         });
       }
+    }
+
+    // --- FILTER KATA KASAR ---
+    if (containsToxicWords(body)) {
+      return reply.status(400).send({ success: false, message: 'Pesanmu mengandung kata-kata yang tidak pantas. Mohon gunakan bahasa yang sopan.' });
     }
 
     // 3. Enkripsi pesan teks

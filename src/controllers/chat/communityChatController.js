@@ -6,6 +6,7 @@ import { uploadFile, deleteFile } from '../../services/r2Service.js';
 import { emitGroupMessage, emitGroupTypingStatus, emitUnreadUpdate, emitMessageStatusUpdate } from '../../services/wsService.js';
 import { createChatNotificationsBatch, markChatAsRead, triggerPushNotificationBatch } from '../../services/notificationService.js';
 import { getUnreadSummaryData } from './unreadController.js';
+import { containsToxicWords } from '../../utils/badWords.js';
 
 /**
  * 1. Membuat Komunitas Baru
@@ -321,6 +322,11 @@ export async function sendCommunityMessage(request, reply) {
     }
 
     if (!conversationId) return reply.status(400).send({ success: false, message: 'ID Komunitas diperlukan.' });
+
+    // --- FILTER KATA KASAR ---
+    if (containsToxicWords(body)) {
+      return reply.status(400).send({ success: false, message: 'Pesanmu mengandung kata-kata yang tidak pantas. Mohon gunakan bahasa yang sopan.' });
+    }
 
     // Enkripsi teks
     const encryptedBody = encryptMessage(body);
