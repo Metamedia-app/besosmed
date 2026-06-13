@@ -14,6 +14,7 @@ export async function getUserPosts(request, reply) {
   try {
     const filter = {
       author_id: targetId,
+      type: 'original', // Hanya ambil postingan asli buatan user
       is_deleted: false
     };
 
