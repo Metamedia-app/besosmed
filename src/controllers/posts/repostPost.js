@@ -148,6 +148,14 @@ export async function repostPost(request, reply) {
   emitRepostUpdate(originalPostId, originalPost.reposts_count);
   emitNewPost(formatted);
 
+  // --- CACHE BUSTING: Hancurkan cache feed agar fresh data langsung muncul ---
+  if (request.server.redis) {
+    try {
+      const keys = await request.server.redis.keys('feed:*');
+      if (keys.length > 0) await request.server.redis.del(...keys);
+    } catch (err) {}
+  }
+
   return reply.status(201).send({
     success: true,
     message: 'Postingan berhasil diposting ulang.',
@@ -189,6 +197,14 @@ export async function unrepostPost(request, reply) {
 
       // Broadcast update
       emitRepostUpdate(originalPostId, originalPost.reposts_count);
+    }
+
+    // --- CACHE BUSTING: Hancurkan cache feed agar fresh data langsung muncul ---
+    if (request.server.redis) {
+      try {
+        const keys = await request.server.redis.keys('feed:*');
+        if (keys.length > 0) await request.server.redis.del(...keys);
+      } catch (err) {}
     }
 
     return reply.send({

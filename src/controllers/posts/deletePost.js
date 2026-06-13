@@ -42,6 +42,14 @@ export async function deletePost(request, reply) {
   // 3. Broadcast real-time agar post hilang di layar user lain
   emitDeletePost(id);
 
+  // --- CACHE BUSTING: Hancurkan cache feed agar fresh data langsung muncul ---
+  if (request.server.redis) {
+    try {
+      const keys = await request.server.redis.keys('feed:*');
+      if (keys.length > 0) await request.server.redis.del(...keys);
+    } catch (err) {}
+  }
+
   return reply.send({
     success: true,
     message: 'Postingan berhasil dihapus.',

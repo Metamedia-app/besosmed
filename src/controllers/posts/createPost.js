@@ -67,6 +67,14 @@ export async function createPost(request, reply) {
   // Broadcast ke semua user yang online
   emitNewPost(formatted);
 
+  // --- CACHE BUSTING: Hancurkan cache feed agar fresh data langsung muncul ---
+  if (request.server.redis) {
+    try {
+      const keys = await request.server.redis.keys('feed:*');
+      if (keys.length > 0) await request.server.redis.del(...keys);
+    } catch (err) {}
+  }
+
   return reply.status(201).send({
     success: true,
     message: 'Postingan berhasil dibuat.',
