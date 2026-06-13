@@ -147,6 +147,29 @@ async function userRoutes(fastify) {
     handler: getUserPosts,
   });
 
+  // ── GET /users/:id/reposts (API BARU KHUSUS REPOSTS) ─────────────────────────
+  fastify.get('/:id/reposts', {
+    ...auth,
+    schema: {
+      tags: ['Posts'],
+      summary: 'Get User Strict Reposts',
+      description: 'Mengambil secara eksklusif daftar postingan yang di-repost oleh user ini. Cocok untuk Tab Reposts di profil.',
+      params: {
+        type: 'object',
+        properties: { id: { type: 'string', description: 'ID User yang ingin dilihat' } }
+      },
+      querystring: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer', default: 10 },
+          before: { type: 'string', description: 'Cursor timestamp untuk pagination' }
+        }
+      },
+      security: [{ bearerAuth: [] }],
+    },
+    handler: (await import('../../controllers/posts/getUserReposts.js')).getUserReposts,
+  });
+
   // ── PATCH /me ─────────────────────────────────────────────────────────────────
   fastify.patch('/me', {
     ...auth,
