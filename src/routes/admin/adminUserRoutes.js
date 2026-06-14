@@ -1,4 +1,4 @@
-import { createUser } from '../../controllers/admin/adminUserController.js';
+import { createUser, importUsersFromExcel, editUser } from '../../controllers/admin/adminUserController.js';
 import { isAdmin } from '../../middlewares/adminMiddleware.js';
 
 async function adminUserRoutes(fastify) {
@@ -47,6 +47,44 @@ async function adminUserRoutes(fastify) {
       }
     },
     handler: createUser
+  });
+
+  fastify.post('/users/import', {
+    ...auth,
+    schema: {
+      summary: 'Import User Massal via Excel',
+      description: 'Upload file .xlsx dengan kolom: nim, nama, email, password, role, program_studi, status_mahasiswa',
+      tags: ['Admin Management'],
+      security: [{ bearerAuth: [] }],
+      consumes: ['multipart/form-data']
+    },
+    handler: importUsersFromExcel
+  });
+
+  fastify.put('/users/:id', {
+    ...auth,
+    schema: {
+      summary: 'Edit Data atau Status Akun User',
+      description: 'Admin dapat mengubah data user: nama, email, program studi, status, role, atau password.',
+      tags: ['Admin Management'],
+      security: [{ bearerAuth: [] }],
+      params: {
+        type: 'object',
+        properties: { id: { type: 'string', description: 'MongoDB _id User' } }
+      },
+      body: {
+        type: 'object',
+        properties: {
+          nama: { type: 'string' },
+          email: { type: 'string' },
+          program_studi: { type: 'string' },
+          status_mahasiswa: { type: 'string', enum: ['AKTIF', 'TIDAK_AKTIF', 'ALUMNI'] },
+          role: { type: 'string', enum: ['mahasiswa', 'dosen', 'admin'] },
+          password: { type: 'string', description: 'Isi hanya jika ingin mengganti password' }
+        }
+      }
+    },
+    handler: editUser
   });
 }
 

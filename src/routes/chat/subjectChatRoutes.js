@@ -45,16 +45,6 @@ export default async function subjectChatRoutes(fastify) {
       summary: 'Admin: Import grup matkul massal via Excel',
       description: 'Upload file .xlsx untuk sinkronisasi massal.',
       consumes: ['multipart/form-data'],
-      body: {
-        type: 'object',
-        properties: {
-          file: {
-            type: 'string',
-            format: 'binary',
-            description: 'File Excel (.xlsx) dengan kolom KODE_MK, NAMA_MK, dll.'
-          }
-        }
-      },
       security: [{ bearerAuth: [] }]
     }
   }, importSubjectsFromExcel);

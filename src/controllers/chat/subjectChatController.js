@@ -598,10 +598,23 @@ export async function importSubjectsFromExcel(request, reply) {
 
   try {
     const workbook = XLSX.read(buffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    // Konversi baris excel menjadi JSON
-    const rows = XLSX.utils.sheet_to_json(sheet);
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    // Baca sebagai array mentah supaya bisa detect baris header yang tidak selalu di row 1
+    const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, defval: '', cellDates: true });
+
+    // Cari baris header: baris pertama yang mengandung 'subject_code'
+    const headerRowIndex = rawRows.findIndex(r =>
+      r.some(cell => cell?.toString().trim().toLowerCase() === 'subject_code')
+    );
+    if (headerRowIndex === -1 || headerRowIndex >= rawRows.length - 1) {
+      return reply.status(400).send({ success: false, message: 'Format Excel tidak valid. Pastikan ada baris header yang mengandung subject_code.' });
+    }
+    const headers = rawRows[headerRowIndex].map(h => h?.toString().trim());
+    const rows = rawRows.slice(headerRowIndex + 1).map(r => {
+      const obj = {};
+      headers.forEach((h, i) => { if (h) obj[h] = r[i]; });
+      return obj;
+    }).filter(r => r.subject_code);
 
     let successCount = 0;
 
@@ -620,8 +633,18 @@ export async function importSubjectsFromExcel(request, reply) {
 
       let expiresAt = null;
       if (expires_at) {
-        expiresAt = new Date(expires_at);
-        expiresAt.setHours(23, 59, 59, 999);
+        // cellDates:true membuat xlsx otomatis return Date object untuk sel tanggal
+        if (expires_at instanceof Date) {
+          expiresAt = expires_at;
+        } else {
+          expiresAt = new Date(expires_at);
+        }
+        // Set ke akhir hari (23:59:59)
+        if (!isNaN(expiresAt.getTime())) {
+          expiresAt.setHours(23, 59, 59, 999);
+        } else {
+          expiresAt = null; // Abaikan jika format tidak valid
+        }
       }
 
       // Parsing NIM mahasiswa dari string koma-separated misal: "123, 456"
@@ -632,69 +655,58 @@ export async function importSubjectsFromExcel(request, reply) {
         studentNims = [students.toString()];
       }
 
-      // Cari object ID mahasiswa DB
-      const studentDocs = await User.find({ nim: { $in: studentNims }, role: 'mahasiswa' }).select('_id');
+      // Cari object ID mahasiswa DB (tanpa filter role agar sama dgn /sync)
+      const studentDocs = await User.find({ nim: { $in: studentNims } }).select('_id');
       const studentIds = studentDocs.map(s => s._id);
 
       // Cari dosen DB
       let lecturerId = null;
       if (lecturer_nim) {
-        const lecturer = await User.findOne({ nim: lecturer_nim, role: 'dosen' });
+        const lecturer = await User.findOne({ nim: lecturer_nim?.toString() });
         if (lecturer) lecturerId = lecturer._id;
       }
 
       // 1. Buat / Update Mata Kuliah
-      let subject = await Subject.findOne({ code: subject_code });
+      let subject = await Subject.findOne({ code: subject_code?.toString() });
       if (!subject) {
         subject = await Subject.create({
-          code: subject_code,
+          code: subject_code.toString(),
           name: subject_name,
           academic_year: academic_year || new Date().getFullYear().toString(),
           lecturer_id: lecturerId,
-          expires_at: expiresAt
         });
       }
 
-      // 2. Buat / Update Room Chat
+      // 2. Buat / Update Room Chat — gunakan type: 'group' sesuai schema enum
       let conv = await Conversation.findOne({
-        type: 'subject',
+        type: 'group',
         subject_id: subject._id
       });
 
-      const participants = [...studentIds];
-      if (lecturerId) participants.push(lecturerId);
+      const finalParticipants = lecturerId ? [...studentIds, lecturerId] : studentIds;
 
       if (!conv) {
-        const unreadCounts = {};
-        participants.forEach(pid => {
-          unreadCounts[pid.toString()] = 0;
-        });
-
         conv = await Conversation.create({
-          type: 'subject',
+          type: 'group',
           subject_id: subject._id,
-          name: `MK: ${subject_name} (${subject_code})`,
-          participants: participants,
-          unread_counts: unreadCounts
+          name: subject_name,
+          participants: finalParticipants,
+          expiresAt: expiresAt
         });
+        subject.conversation_id = conv._id;
+        await subject.save();
       } else {
-        const newParticipants = new Set([
-          ...conv.participants.map(p => p.toString()),
-          ...participants.map(p => p.toString())
-        ]);
-        
-        let existingUnread = conv.unread_counts || {};
-        newParticipants.forEach(pId => {
-          if (existingUnread[pId] === undefined) {
-             existingUnread[pId] = 0;
-          }
-        });
-
-        conv.participants = Array.from(newParticipants);
-        conv.unread_counts = existingUnread;
-        await conv.save();
+        if (finalParticipants.length > 0) {
+          await Conversation.findByIdAndUpdate(conv._id, {
+            $addToSet: { participants: { $each: finalParticipants } }
+          });
+        }
+        if (expiresAt) {
+          conv.expiresAt = expiresAt;
+          await conv.save();
+        }
       }
-      
+
       successCount++;
     }
 
