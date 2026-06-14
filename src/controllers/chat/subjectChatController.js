@@ -633,17 +633,34 @@ export async function importSubjectsFromExcel(request, reply) {
 
       let expiresAt = null;
       if (expires_at) {
-        // cellDates:true membuat xlsx otomatis return Date object untuk sel tanggal
         if (expires_at instanceof Date) {
           expiresAt = expires_at;
-        } else {
-          expiresAt = new Date(expires_at);
+        } else if (typeof expires_at === 'number') {
+          // Konversi angka serial Excel (1 = 1 Januari 1900) jadi Javascript Date
+          expiresAt = new Date(Math.round((expires_at - 25569) * 86400 * 1000));
+        } else if (typeof expires_at === 'string') {
+          // Tangani kemungkinan format string "15/06/2026" (DD/MM/YYYY)
+          if (expires_at.includes('/')) {
+            const parts = expires_at.split('/');
+            // Pastikan format masuk akal sebelum parse
+            if (parts.length === 3) {
+              const day = parseInt(parts[0], 10);
+              const month = parseInt(parts[1], 10) - 1; // Bulan di JS 0-11
+              const year = parseInt(parts[2], 10);
+              // Handle format yg mungkin MM/DD/YYYY secara kebetulan kalau day > 12 -> 100% DD/MM/YYYY
+              expiresAt = new Date(year, month, day); 
+            }
+          } else {
+            // Coba parse native string "2026-06-15"
+            expiresAt = new Date(expires_at);
+          }
         }
-        // Set ke akhir hari (23:59:59)
-        if (!isNaN(expiresAt.getTime())) {
+
+        // Set ke akhir hari (23:59:59) jika tanggalnya valid
+        if (expiresAt && !isNaN(expiresAt.getTime())) {
           expiresAt.setHours(23, 59, 59, 999);
         } else {
-          expiresAt = null; // Abaikan jika format tidak valid
+          expiresAt = null; // Abaikan jika gagal parse
         }
       }
 

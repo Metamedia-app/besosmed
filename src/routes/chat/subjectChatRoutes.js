@@ -10,6 +10,7 @@ import {
   markGroupAsRead
 } from '../../controllers/chat/subjectChatController.js';
 import { getMedia } from '../../controllers/chat/chatController.js';
+import { isAdmin } from '../../middlewares/adminMiddleware.js';
 
 export default async function subjectChatRoutes(fastify) {
   // Semua rute di sini butuh login
@@ -40,11 +41,19 @@ export default async function subjectChatRoutes(fastify) {
   }, syncSubjectChat);
 
   fastify.post('/import', {
+    preHandler: [fastify.authenticate, isAdmin],
+    validatorCompiler: () => () => true,
     schema: {
       tags: ['Admin Dashboard'],
       summary: 'Admin: Import grup matkul massal via Excel',
       description: 'Upload file .xlsx untuk sinkronisasi massal.',
       consumes: ['multipart/form-data'],
+      body: {
+        type: 'object',
+        properties: {
+          file: { type: 'string', format: 'binary', description: 'File Excel (.xlsx)' }
+        }
+      },
       security: [{ bearerAuth: [] }]
     }
   }, importSubjectsFromExcel);

@@ -51,12 +51,19 @@ async function adminUserRoutes(fastify) {
 
   fastify.post('/users/import', {
     ...auth,
+    validatorCompiler: () => () => true,
     schema: {
       summary: 'Import User Massal via Excel',
       description: 'Upload file .xlsx dengan kolom: nim, nama, email, password, role, program_studi, status_mahasiswa',
       tags: ['Admin Management'],
       security: [{ bearerAuth: [] }],
-      consumes: ['multipart/form-data']
+      consumes: ['multipart/form-data'],
+      body: {
+        type: 'object',
+        properties: {
+          file: { type: 'string', format: 'binary', description: 'File Excel (.xlsx)' }
+        }
+      }
     },
     handler: importUsersFromExcel
   });
