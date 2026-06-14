@@ -7,7 +7,8 @@ import {
   deleteGroupMessage,
   setGroupTypingStatus,
   getGroupDetail,
-  markGroupAsRead
+  markGroupAsRead,
+  updateSubjectGroupAvatar
 } from '../../controllers/chat/subjectChatController.js';
 import { getMedia } from '../../controllers/chat/chatController.js';
 import { isAdmin } from '../../middlewares/adminMiddleware.js';
@@ -58,6 +59,24 @@ export default async function subjectChatRoutes(fastify) {
     }
   }, importSubjectsFromExcel);
 
+  // --- MATKUL AVATAR & OTHER ROUTES ---
+  fastify.patch('/:groupId/avatar', {
+    validatorCompiler: () => () => true,
+    schema: {
+      tags: ['Chat Matkul'],
+      summary: 'Dosen/Admin: Update Avatar Grup Matkul',
+      description: 'Upload file gambar (multipart/form-data) untuk mengganti avatar/logo grup. Hanya dapat diakses oleh role dosen atau admin.',
+      consumes: ['multipart/form-data'],
+      body: {
+        type: 'object',
+        properties: {
+          file: { type: 'string', format: 'binary', description: 'File gambar avatar (jpg/png/dll)' }
+        }
+      },
+      security: [{ bearerAuth: [] }]
+    }
+  }, updateSubjectGroupAvatar);
+
   // --- USER ROUTES ---
   fastify.get('/my-groups', {
     schema: {
@@ -66,6 +85,7 @@ export default async function subjectChatRoutes(fastify) {
       security: [{ bearerAuth: [] }]
     }
   }, getMySubjectGroups);
+
 
   fastify.get('/groups/:conversationId', {
     schema: {

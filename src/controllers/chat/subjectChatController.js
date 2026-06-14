@@ -736,3 +736,77 @@ export async function importSubjectsFromExcel(request, reply) {
     return reply.status(500).send({ success: false, message: 'Terjadi kesalahan saat memproses file Excel.' });
   }
 }
+
+/**
+ * Upload/Update Avatar Grup Matkul
+ * PATCH /api/v1/chat-matkul/:groupId/avatar
+ * Hanya Dosen dan Admin yang boleh
+ */
+export async function updateSubjectGroupAvatar(request, reply) {
+  const { groupId } = request.params;
+  const requestUser = request.user;
+
+  // Hanya role dosen dan admin yang diizinkan
+  if (requestUser.role !== 'dosen' && requestUser.role !== 'admin') {
+    return reply.status(403).send({
+      success: false,
+      message: 'Hanya Dosen atau Admin yang dapat mengubah avatar grup.'
+    });
+  }
+
+  try {
+    const group = await Conversation.findOne({ _id: groupId, type: 'group' });
+    if (!group) {
+      return reply.status(404).send({ success: false, message: 'Grup matkul tidak ditemukan.' });
+    }
+
+    // Baca file dari multipart
+    const parts = request.parts();
+    let fileBuffer = null;
+    let mimetype = null;
+
+    for await (const part of parts) {
+      if (part.type === 'file') {
+        if (!part.mimetype.startsWith('image/')) {
+          return reply.status(400).send({ success: false, message: 'Hanya file gambar yang diperbolehkan.' });
+        }
+        const chunks = [];
+        for await (const chunk of part.file) chunks.push(chunk);
+        fileBuffer = Buffer.concat(chunks);
+        mimetype = part.mimetype;
+        break;
+      }
+    }
+
+    if (!fileBuffer) {
+      return reply.status(400).send({ success: false, message: 'File gambar tidak ditemukan dalam request.' });
+    }
+
+    // Hapus avatar lama dari R2 jika ada
+    if (group.avatar_url) {
+      try {
+        // Ekstrak key dari URL (format: https://publicUrl/key)
+        const oldKey = group.avatar_url.split('/').slice(3).join('/');
+        await deleteFile(oldKey);
+      } catch (e) {
+        request.log.warn('Gagal menghapus avatar lama: ' + e.message);
+      }
+    }
+
+    // Upload avatar baru ke R2
+    const { url } = await uploadFile(fileBuffer, mimetype, 'avatar');
+
+    // Simpan URL baru ke database
+    group.avatar_url = url;
+    await group.save();
+
+    return reply.send({
+      success: true,
+      message: 'Avatar grup berhasil diperbarui.',
+      data: { avatar_url: url }
+    });
+  } catch (error) {
+    request.log.error(error);
+    return reply.status(500).send({ success: false, message: 'Gagal mengupload avatar grup.' });
+  }
+}
