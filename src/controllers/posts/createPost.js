@@ -62,6 +62,7 @@ export async function createPost(request, reply) {
   // Populate author untuk response & broadcast
   await post.populate('author_id', 'nim nama avatar_url program_studi');
 
+  const postObj = post.toObject();
   const formatted = {
     ...postObj,
     author: postObj.author_id,
