@@ -212,7 +212,9 @@ export async function editUser(request, reply) {
     if (email !== undefined) user.email = email;
     if (program_studi !== undefined) user.program_studi = program_studi;
     if (status_mahasiswa !== undefined) user.status_mahasiswa = status_mahasiswa;
-    if (role !== undefined) user.role = role;
+    if (role !== undefined) {
+      user.role = role.toLowerCase() === 'mahasiswa' ? 'user' : role;
+    }
 
     // Jika password diisi, hash ulang
     if (password) {

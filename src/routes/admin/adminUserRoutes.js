@@ -86,7 +86,7 @@ async function adminUserRoutes(fastify) {
           email: { type: 'string' },
           program_studi: { type: 'string' },
           status_mahasiswa: { type: 'string', enum: ['AKTIF', 'TIDAK_AKTIF', 'ALUMNI'] },
-          role: { type: 'string', enum: ['user', 'dosen', 'admin'] },
+          role: { type: 'string', enum: ['user', 'mahasiswa', 'dosen', 'admin'] },
           password: { type: 'string', description: 'Isi hanya jika ingin mengganti password' }
         }
       }
