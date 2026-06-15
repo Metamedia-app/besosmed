@@ -1,6 +1,15 @@
 import bcrypt from 'bcrypt';
 import User from '../../models/User.js';
+import Conversation from '../../models/Conversation.js';
 import * as XLSX from 'xlsx';
+
+/**
+ * Membuat User atau Admin baru (Hanya Admin)
+ * ... (skip to editUser)
+ */
+
+// NOTE: To do this correctly, we will just multi_replace_file_content or perform it cleanly.
+// Let me use multi_replace instead to target both the top and the editUser method precisely.
 
 /**
  * Membuat User atau Admin baru (Hanya Admin)
@@ -145,6 +154,29 @@ export async function importUsersFromExcel(request, reply) {
         program_studi: program_studi?.toString() || '',
         status_mahasiswa: status_mahasiswa?.toString() || 'AKTIF',
       });
+
+      // ---- AUTO SYNC ALUMNI GROUP ----
+      const finalStatus = status_mahasiswa?.toString() || 'AKTIF';
+      const isAlumni = ['ALUMNI', 'TIDAK_AKTIF', 'TIDAK AKTIF'].includes(finalStatus.toUpperCase());
+      
+      if (isAlumni) {
+        let alumniGroup = await Conversation.findOne({ type: 'community', is_default_alumni: true });
+        if (!alumniGroup) {
+          alumniGroup = await Conversation.create({
+            type: 'community',
+            is_default_alumni: true,
+            name: 'Ikatan Alumni',
+            description: 'Grup komunitas resmi bagi para alumni dan mahasiswa tidak aktif.',
+            participants: [newUser._id]
+          });
+        } else {
+          await Conversation.updateOne(
+            { _id: alumniGroup._id },
+            { $addToSet: { participants: newUser._id } }
+          );
+        }
+      }
+
       created++;
     }
 
@@ -173,6 +205,8 @@ export async function editUser(request, reply) {
       return reply.status(404).send({ success: false, message: 'User tidak ditemukan.' });
     }
 
+    const oldStatus = user.status_mahasiswa;
+
     // Update hanya field yang dikirim
     if (nama !== undefined) user.nama = nama;
     if (email !== undefined) user.email = email;
@@ -186,6 +220,33 @@ export async function editUser(request, reply) {
     }
 
     await user.save();
+
+    // ---- AUTO SYNC ALUMNI GROUP ----
+    if (status_mahasiswa !== undefined) {
+      const isNowAlumni = ['ALUMNI', 'TIDAK_AKTIF', 'TIDAK AKTIF'].includes(user.status_mahasiswa?.toUpperCase() || '');
+
+      if (isNowAlumni) {
+        // Find or create default alumni group
+        let alumniGroup = await Conversation.findOne({ type: 'community', is_default_alumni: true });
+        if (!alumniGroup) {
+          alumniGroup = await Conversation.create({
+            type: 'community',
+            is_default_alumni: true,
+            name: 'Ikatan Alumni',
+            description: 'Grup komunitas resmi bagi para alumni dan mahasiswa tidak aktif.',
+            participants: [user._id]
+          });
+        } else {
+          await Conversation.updateOne({ _id: alumniGroup._id }, { $addToSet: { participants: user._id } });
+        }
+      } else {
+        // Kick from alumni group
+        await Conversation.updateOne(
+          { type: 'community', is_default_alumni: true }, 
+          { $pull: { participants: user._id } }
+        );
+      }
+    }
 
     const userResponse = user.toObject();
     delete userResponse.password;

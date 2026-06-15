@@ -448,6 +448,10 @@ export async function inviteToCommunity(request, reply) {
       return reply.status(404).send({ success: false, message: 'Komunitas tidak ditemukan.' });
     }
 
+    if (community.is_default_alumni) {
+      return reply.status(403).send({ success: false, message: 'Grup alumni dikelola otomatis oleh sistem. Anda tidak bisa menambah anggota.' });
+    }
+
     // Cek apakah yang invite adalah Admin
     if (!community.admins.map(a => a.toString()).includes(adminId)) {
       return reply.status(403).send({ success: false, message: 'Hanya Admin yang dapat mengundang anggota.' });
@@ -490,6 +494,10 @@ export async function kickFromCommunity(request, reply) {
     const community = await Conversation.findById(communityId);
     if (!community) return reply.status(404).send({ success: false, message: 'Komunitas tidak ditemukan.' });
 
+    if (community.is_default_alumni) {
+      return reply.status(403).send({ success: false, message: 'Anda tidak dapat keluar atau dikeluarkan dari grup Alumni.' });
+    }
+
     // Cek apakah Admin
     if (!community.admins.includes(adminId)) {
       return reply.status(403).send({ success: false, message: 'Hanya Admin yang dapat mengeluarkan anggota.' });
@@ -522,6 +530,10 @@ export async function deleteCommunity(request, reply) {
     const community = await Conversation.findById(communityId);
     if (!community || community.type !== 'community') {
       return reply.status(404).send({ success: false, message: 'Komunitas tidak ditemukan.' });
+    }
+
+    if (community.is_default_alumni) {
+      return reply.status(403).send({ success: false, message: 'Grup Alumni adalah bagian dari sistem dan tidak boleh dihapus.' });
     }
 
     // Hanya Creator yang bisa hapus komunitas

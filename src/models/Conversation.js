@@ -59,6 +59,11 @@ const conversationSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    // Flag penanda apakah ini adalah Grup Komunitas Pusat Bawaan (Alumni)
+    is_default_alumni: {
+      type: Boolean,
+      default: false,
+    },
     // Fitur: Auto-delete (TTL)
     expiresAt: {
       type: Date
