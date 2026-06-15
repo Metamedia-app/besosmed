@@ -62,15 +62,31 @@ export async function createPost(request, reply) {
   // Populate author untuk response & broadcast
   await post.populate('author_id', 'nim nama avatar_url program_studi');
 
-  const postObj = post.toObject();
   const formatted = {
     ...postObj,
     author: postObj.author_id,
     author_id: undefined,
   };
 
-  // Broadcast ke semua user yang online
-  emitNewPost(formatted);
+  // --- CEK VISIBILITY UNTUK BROADCAST ---
+  let targetUserIds = null; // default null = broadcast ke semua
+  if (visibility === 'followers') {
+    import('../../models/Follow.js').then(async ({ default: Follow }) => {
+      const followers = await Follow.find({ following_id: authorId }).select('follower_id');
+      const followerIds = followers.map((f) => f.follower_id.toString());
+      targetUserIds = [authorId, ...followerIds]; // author + followers
+      emitNewPost(formatted, targetUserIds);
+    }).catch(err => {
+      console.error(err);
+      emitNewPost(formatted, [authorId]); // fallback ke private
+    });
+  } else if (visibility === 'private') {
+    targetUserIds = [authorId];
+    emitNewPost(formatted, targetUserIds);
+  } else {
+    // public
+    emitNewPost(formatted, null);
+  }
 
   // --- CACHE BUSTING: Hancurkan cache feed agar fresh data langsung muncul ---
   if (request.server.redis) {

@@ -22,6 +22,7 @@ export async function editPost(request, reply) {
   const isMultipart = contentType.includes('multipart/form-data');
 
   let newCaption = null;
+  let newVisibility = null;
   let mediaToRemove = []; // key-key R2 yang mau dihapus
   const newMediaList = [];
 
@@ -33,6 +34,8 @@ export async function editPost(request, reply) {
       if (part.type === 'field') {
         if (part.fieldname === 'caption') {
           newCaption = part.value?.trim() || null;
+        } else if (part.fieldname === 'visibility') {
+          newVisibility = part.value?.trim() || null;
         } else if (part.fieldname === 'remove_media') {
           console.log('--- Debug Edit Post ---');
           console.log('Raw remove_media value:', part.value);
@@ -75,20 +78,30 @@ export async function editPost(request, reply) {
       }
     }
   } else {
-    // JSON request: hanya update caption
+    // JSON request: hanya update caption dan/atau visibility
     newCaption = request.body?.caption?.trim() || null;
+    newVisibility = request.body?.visibility?.trim() || null;
   }
 
-  // Validasi: setidaknya caption atau file yang berubah
-  if (!newCaption && newMediaList.length === 0 && mediaToRemove.length === 0) {
+  // Validasi: setidaknya ada data yang berubah
+  if (!newCaption && !newVisibility && newMediaList.length === 0 && mediaToRemove.length === 0) {
     return reply.status(400).send({
       success: false,
-      message: 'Tidak ada yang diubah. Isi caption atau tambah/hapus media.',
+      message: 'Tidak ada yang diubah. Isi caption, visibility, atau tambah/hapus media.',
     });
   }
 
   // Update caption jika ada
   if (newCaption) post.caption = newCaption;
+
+  // Update visibility jika ada
+  if (newVisibility) {
+    const allowedVisibility = ['public', 'followers', 'private'];
+    if (!allowedVisibility.includes(newVisibility)) {
+      return reply.status(400).send({ success: false, message: 'Visibility tidak valid. Gunakan public, followers, atau private.' });
+    }
+    post.visibility = newVisibility;
+  }
 
   // Hapus media lama dari array post dan dari R2
   if (mediaToRemove.length > 0) {

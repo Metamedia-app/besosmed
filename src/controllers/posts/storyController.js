@@ -66,6 +66,15 @@ export async function createStory(request, reply) {
 
   await story.populate('author_id', 'nim nama avatar_url');
 
+  // Broadcast story hanya ke follower (sesuai aturan visibility story bawaan)
+  try {
+    const followers = await Follow.find({ following_id: userId }).select('follower_id');
+    const followerIds = followers.map((f) => f.follower_id.toString());
+    wsService.emitNewStory(story, [userId, ...followerIds]);
+  } catch (err) {
+    console.error('Error broadcasting new story:', err);
+  }
+
   return reply.status(201).send({
     success: true,
     message: 'Story berhasil diunggah dan akan aktif selama 24 jam.',

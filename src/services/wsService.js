@@ -95,11 +95,15 @@ export function emitNewComment(postId, comment) {
   });
 }
 
-export function emitNewPost(post) {
-  broadcast({
-    type: 'new_post',
-    data: { post },
-  });
+export function emitNewPost(post, targetUserIds = null) {
+  if (targetUserIds && Array.isArray(targetUserIds)) {
+    targetUserIds.forEach(id => sendToUser(id.toString(), { type: 'new_post', data: { post } }));
+  } else {
+    broadcast({
+      type: 'new_post',
+      data: { post },
+    });
+  }
 }
 
 export function emitRepostUpdate(postId, repostsCount) {
@@ -246,4 +250,17 @@ export function emitUnreadUpdate(userId, unreadData) {
     type: 'unread_update',
     data: unreadData,
   });
+}
+
+// ── Story Events ──────────────────────────────────────────────────────────────
+
+export function emitNewStory(story, targetUserIds = null) {
+  if (targetUserIds && Array.isArray(targetUserIds)) {
+    targetUserIds.forEach(id => sendToUser(id.toString(), { type: 'new_story', data: { story } }));
+  } else {
+    broadcast({
+      type: 'new_story',
+      data: { story },
+    });
+  }
 }

@@ -90,6 +90,7 @@ async function postRoutes(fastify) {
         type: 'object',
         properties: {
           caption: { type: 'string', description: 'Caption baru (opsional)' },
+          visibility: { type: 'string', enum: ['public', 'followers', 'private'], description: 'Visibilitas postingan' },
           remove_media: { 
             type: 'string', 
             description: 'JSON array key media yang dihapus, contoh: ["posts/images/uuid.png"]' 
