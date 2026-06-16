@@ -8,7 +8,8 @@ import {
   setGroupTypingStatus,
   getGroupDetail,
   markGroupAsRead,
-  updateSubjectGroupAvatar
+  updateSubjectGroupAvatar,
+  deleteSubjectGroup
 } from '../../controllers/chat/subjectChatController.js';
 import { getMedia } from '../../controllers/chat/chatController.js';
 import { isAdmin } from '../../middlewares/adminMiddleware.js';
@@ -58,6 +59,16 @@ export default async function subjectChatRoutes(fastify) {
       security: [{ bearerAuth: [] }]
     }
   }, importSubjectsFromExcel);
+
+  fastify.delete('/:groupId', {
+    preHandler: [fastify.authenticate, isAdmin],
+    schema: {
+      tags: ['Admin Dashboard'],
+      summary: 'Admin: Hapus Grup Mata Kuliah beserta avatarnya',
+      params: { type: 'object', properties: { groupId: { type: 'string' } } },
+      security: [{ bearerAuth: [] }]
+    }
+  }, deleteSubjectGroup);
 
   // --- MATKUL AVATAR & OTHER ROUTES ---
   fastify.patch('/:groupId/avatar', {

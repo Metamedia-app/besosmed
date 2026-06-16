@@ -87,8 +87,23 @@ async function socketioPlugin(fastify) {
           });
       }
 
-      socket.on('disconnect', (reason) => {
+      // Broadcast status online ke semua user (Indikator Realtime)
+      io.emit('user_status_change', {
+        userId: userId.toString(),
+        status: 'online',
+      });
+
+      socket.on('disconnect', async (reason) => {
         console.log(`[Socket.io] User disconnected: ${userNama} (${userId}) - Reason: ${reason}`);
+
+        // Cek apakah user benar-benar offline (semua tab tertutup)
+        const sockets = await io.in(`user:${userId}`).fetchSockets();
+        if (sockets.length === 0) {
+          io.emit('user_status_change', {
+            userId: userId.toString(),
+            status: 'offline',
+          });
+        }
       });
 
       // Response handshake sukses

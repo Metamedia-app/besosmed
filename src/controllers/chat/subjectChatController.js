@@ -810,3 +810,44 @@ export async function updateSubjectGroupAvatar(request, reply) {
     return reply.status(500).send({ success: false, message: 'Gagal mengupload avatar grup.' });
   }
 }
+
+/**
+ * Hapus Grup Mata Kuliah (Admin Only)
+ * DELETE /chat-matkul/:groupId
+ */
+export async function deleteSubjectGroup(request, reply) {
+  // Proteksi role ekstra: Hanya admin yang punya hak
+  if (request.user.role !== 'admin') {
+    return reply.status(403).send({ success: false, message: 'Hanya Admin yang dapat menghapus grup mata kuliah.' });
+  }
+
+  const { groupId } = request.params;
+
+  try {
+    const group = await Conversation.findOne({ _id: groupId, type: 'group' });
+    if (!group) {
+      return reply.status(404).send({ success: false, message: 'Grup mata kuliah tidak ditemukan.' });
+    }
+
+    // 1. Hapus avatar grup dari Cloudflare R2 untuk hemat storage
+    if (group.avatar_url) {
+      try {
+        const oldKey = group.avatar_url.split('/').slice(3).join('/');
+        await deleteFile(oldKey);
+      } catch (e) {
+        request.log.warn('Gagal menghapus avatar lama saat delete grup: ' + e.message);
+      }
+    }
+
+    // 2. Hapus seluruh isi pesan di dalam grup tersebut agar bersih dari database
+    await Message.deleteMany({ conversation_id: groupId });
+
+    // 3. Eksekusi penghancuran grup
+    await group.deleteOne();
+
+    return reply.send({ success: true, message: 'Grup Mata Kuliah beserta seluruh chat-nya berhasil dihapus.' });
+  } catch (err) {
+    request.log.error(err);
+    return reply.status(500).send({ success: false, message: 'Terjadi kesalahan internal server saat menghapus grup.' });
+  }
+}
