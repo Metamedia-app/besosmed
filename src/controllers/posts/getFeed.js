@@ -76,13 +76,18 @@ export async function getFeed(request, reply) {
       // A. Recency Score: Post baru dapat poin tinggi (menyusut 1 poin tiap 30 menit)
       const recencyScore = Math.max(0, 100 - (ageInMinutes / 30));
       
-      // B. Engagement Score: Konten populer didongkrak (Like x10, Komen x5, Repost x8)
-      const engagementScore = ((p.likes_count || 0) * 10) + ((p.comments_count || 0) * 5) + ((p.reposts_count || 0) * 8);
+      // B. Engagement Score dengan Redaman Logaritmik:
+      // Mencegah postingan viral (1000+ likes) mendominasi selamanya.
+      // Math.log1p(x) = ln(1+x) → kurva melandai untuk nilai besar.
+      const rawEngagement = ((p.likes_count || 0) * 10) + ((p.comments_count || 0) * 5) + ((p.reposts_count || 0) * 8);
+      const engagementScore = Math.log1p(rawEngagement) * 20;
       
-      // C. Random Noise: Nilai acak dinamis agar setiap reload terasa fresh (0 - 40 poin)
-      const randomNoise = Math.random() * 40;
+      // C. Random Multiplier (±30%): Pengali dinamis agar posisi bertukar saat reload.
+      // Jauh lebih efektif dari tambahan statis karena proporsional terhadap skor total.
+      const baseScore = recencyScore + engagementScore;
+      const randomMultiplier = 0.7 + (Math.random() * 0.6); // antara 0.7x hingga 1.3x
       
-      p.sapws_score = recencyScore + engagementScore + randomNoise;
+      p.sapws_score = baseScore * randomMultiplier;
     });
 
     // Urutkan berdasarkan total skor SAPWS tertinggi
