@@ -12,8 +12,11 @@ export async function getFeed(request, reply) {
   const limit = Math.min(parseInt(request.query.limit) || 10, 30);
   const before = request.query.before;
 
-  // --- REDIS CACHE: Cek laci penyimpanan (Cache Hit) ---
-  const cacheKey = `feed:${userId}:${limit}:${before || 'latest'}`;
+  // --- REDIS CACHE ---
+  // Halaman pertama: cache 5 detik (cukup fresh untuk randomisasi, ringan ke MongoDB)
+  // Halaman lanjutan (cursor): cache 60 detik (hemat resource infinite scroll)
+  const cacheKey = `feed:${userId}:${limit}:${before || 'first'}`;
+  const cacheTTL = before ? 60 : 5;
   if (request.server.redis) {
     try {
       const cached = await request.server.redis.get(cacheKey);
@@ -22,10 +25,9 @@ export async function getFeed(request, reply) {
       }
     } catch (err) {
       request.log.warn(`Redis GET Error: ${err.message}`);
-      // Lanjut ke MongoDB jika Redis gagal (Fail-safe)
     }
   }
-  // ----------------------------------------------------
+  // -------------------------------------------------------------------
 
 
   // 1. Ambil daftar user yang diikuti (following)
@@ -135,11 +137,10 @@ export async function getFeed(request, reply) {
     },
   };
 
-  // --- REDIS CACHE: Simpan ke laci (Cache Miss -> Set) ---
+  // --- REDIS CACHE: Simpan hasil dengan TTL sesuai jenis halaman ---
   if (request.server.redis) {
     try {
-      // Simpan dengan Time-To-Live (TTL) 60 detik
-      await request.server.redis.set(cacheKey, JSON.stringify(responseData), 'EX', 60);
+      await request.server.redis.set(cacheKey, JSON.stringify(responseData), 'EX', cacheTTL);
     } catch (err) {
       request.log.warn(`Redis SET Error: ${err.message}`);
     }
