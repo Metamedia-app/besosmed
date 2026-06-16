@@ -69,32 +69,32 @@ export async function getFeed(request, reply) {
     })
     .lean();
 
-  // --- ALGORITMA SAPWS (Social Affinity & Popularity Weighted Shuffling) ---
-  // Terapkan rekomendasi acak berbobot hanya saat reload/halaman pertama
+  // --- ALGORITMA SAPWS + Weighted Random Shuffle (Efraimidis-Spirakis) ---
+  // Setiap postingan punya PELUANG NYATA muncul di posisi manapun,
+  // namun postingan dengan skor tinggi tetap punya probabilitas lebih besar.
+  // Rumus: sort_key = random ^ (1 / weight) — semakin besar weight, nilai sort_key
+  // cenderung mendekati 1, sehingga postingan berbobot tinggi lebih sering "menang",
+  // tapi tidak SELALU menang. Ini yang membuat feed terasa hidup setiap reload.
   if (!before && posts.length > 0) {
     posts.forEach((p) => {
       const ageInMinutes = (Date.now() - new Date(p.createdAt).getTime()) / (1000 * 60);
       
-      // A. Recency Score: Post baru dapat poin tinggi (menyusut 1 poin tiap 30 menit)
+      // A. Recency Score
       const recencyScore = Math.max(0, 100 - (ageInMinutes / 30));
       
-      // B. Engagement Score dengan Redaman Logaritmik:
-      // Mencegah postingan viral (1000+ likes) mendominasi selamanya.
-      // Math.log1p(x) = ln(1+x) → kurva melandai untuk nilai besar.
+      // B. Engagement Score dengan Redaman Logaritmik
       const rawEngagement = ((p.likes_count || 0) * 10) + ((p.comments_count || 0) * 5) + ((p.reposts_count || 0) * 8);
       const engagementScore = Math.log1p(rawEngagement) * 20;
       
-      // C. Random Multiplier (±30%): Pengali dinamis agar posisi bertukar saat reload.
-      // Jauh lebih efektif dari tambahan statis karena proporsional terhadap skor total.
-      const baseScore = recencyScore + engagementScore;
-      const randomMultiplier = 0.7 + (Math.random() * 0.6); // antara 0.7x hingga 1.3x
-      
-      p.sapws_score = baseScore * randomMultiplier;
+      // C. Weighted Random Shuffle Key (Efraimidis-Spirakis)
+      // weight minimal 0.1 agar tidak ada pembagian dengan 0
+      const weight = Math.max(0.1, recencyScore + engagementScore);
+      p.sapws_score = weight; // Simpan skor asli untuk referensi
+      p._sort_key = Math.random() ** (1 / weight); // Kunci shuffle acak berbobot
     });
 
-    // Urutkan berdasarkan total skor SAPWS tertinggi
-    posts.sort((a, b) => b.sapws_score - a.sapws_score);
-    // Potong sesuai limit yang diminta
+    // Urutkan berdasarkan sort_key tertinggi (acak berbobot)
+    posts.sort((a, b) => b._sort_key - a._sort_key);
     posts = posts.slice(0, limit);
   }
   // --------------------------------------------------------------------------
