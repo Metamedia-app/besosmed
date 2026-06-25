@@ -4,18 +4,21 @@ import Major from '../../models/Major.js';
  * Buat Jurusan/Prodi Baru
  */
 export async function createMajor(request, reply) {
-  const { name, faculty } = request.body;
+  const { name, faculty, code_prodi, singkatan } = request.body;
 
   try {
-    const existing = await Major.findOne({ name });
+    const existing = await Major.findOne({ 
+      $or: [{ name }, { code_prodi: code_prodi || 'DISABLED_NON_EXISTENT' }] 
+    });
+    
     if (existing) {
       return reply.status(400).send({
         success: false,
-        message: `Jurusan ${name} sudah ada.`,
+        message: `Jurusan atau Kode Prodi sudah terdaftar.`,
       });
     }
 
-    const major = await Major.create({ name, faculty });
+    const major = await Major.create({ name, faculty, code_prodi, singkatan });
 
     return reply.status(201).send({
       success: true,

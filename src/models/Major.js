@@ -13,6 +13,16 @@ const majorSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    code_prodi: {
+      type: String,
+      unique: true,
+      trim: true,
+      index: true,
+    },
+    singkatan: {
+      type: String,
+      trim: true,
+    },
   },
   {
     timestamps: true,

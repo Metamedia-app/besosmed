@@ -57,6 +57,27 @@ export async function createUser(request, reply) {
     const userResponse = newUser.toObject();
     delete userResponse.password;
 
+    // ---- AUTO SYNC ALUMNI GROUP (Dosen & Alumni) ----
+    const isAlumniOrDosen = (role === 'dosen') || ['ALUMNI', 'TIDAK_AKTIF', 'TIDAK AKTIF'].includes(status_mahasiswa?.toUpperCase() || '');
+    
+    if (isAlumniOrDosen) {
+      let alumniGroup = await Conversation.findOne({ type: 'community', is_default_alumni: true });
+      if (!alumniGroup) {
+        alumniGroup = await Conversation.create({
+          type: 'community',
+          is_default_alumni: true,
+          name: 'Ikatan Alumni',
+          description: 'Grup komunitas resmi bagi para alumni, mahasiswa tidak aktif, dan dosen.',
+          participants: [newUser._id]
+        });
+      } else {
+        await Conversation.updateOne(
+          { _id: alumniGroup._id },
+          { $addToSet: { participants: newUser._id } }
+        );
+      }
+    }
+
     return reply.status(201).send({
       success: true,
       message: `${role === 'admin' ? 'Admin' : 'User'} berhasil dibuat.`,
@@ -155,18 +176,18 @@ export async function importUsersFromExcel(request, reply) {
         status_mahasiswa: status_mahasiswa?.toString() || 'AKTIF',
       });
 
-      // ---- AUTO SYNC ALUMNI GROUP ----
+      // ---- AUTO SYNC ALUMNI GROUP (Dosen & Alumni) ----
       const finalStatus = status_mahasiswa?.toString() || 'AKTIF';
-      const isAlumni = ['ALUMNI', 'TIDAK_AKTIF', 'TIDAK AKTIF'].includes(finalStatus.toUpperCase());
+      const isAlumniOrDosen = (userRole === 'dosen') || ['ALUMNI', 'TIDAK_AKTIF', 'TIDAK AKTIF'].includes(finalStatus.toUpperCase());
       
-      if (isAlumni) {
+      if (isAlumniOrDosen) {
         let alumniGroup = await Conversation.findOne({ type: 'community', is_default_alumni: true });
         if (!alumniGroup) {
           alumniGroup = await Conversation.create({
             type: 'community',
             is_default_alumni: true,
             name: 'Ikatan Alumni',
-            description: 'Grup komunitas resmi bagi para alumni dan mahasiswa tidak aktif.',
+            description: 'Grup komunitas resmi bagi para alumni, mahasiswa tidak aktif, dan dosen.',
             participants: [newUser._id]
           });
         } else {
@@ -223,31 +244,29 @@ export async function editUser(request, reply) {
 
     await user.save();
 
-    // ---- AUTO SYNC ALUMNI GROUP ----
-    if (status_mahasiswa !== undefined) {
-      const isNowAlumni = ['ALUMNI', 'TIDAK_AKTIF', 'TIDAK AKTIF'].includes(user.status_mahasiswa?.toUpperCase() || '');
+    // ---- AUTO SYNC ALUMNI GROUP (Dosen & Alumni) ----
+    const isNowAlumniOrDosen = (user.role === 'dosen') || ['ALUMNI', 'TIDAK_AKTIF', 'TIDAK AKTIF'].includes(user.status_mahasiswa?.toUpperCase() || '');
 
-      if (isNowAlumni) {
-        // Find or create default alumni group
-        let alumniGroup = await Conversation.findOne({ type: 'community', is_default_alumni: true });
-        if (!alumniGroup) {
-          alumniGroup = await Conversation.create({
-            type: 'community',
-            is_default_alumni: true,
-            name: 'Ikatan Alumni',
-            description: 'Grup komunitas resmi bagi para alumni dan mahasiswa tidak aktif.',
-            participants: [user._id]
-          });
-        } else {
-          await Conversation.updateOne({ _id: alumniGroup._id }, { $addToSet: { participants: user._id } });
-        }
+    if (isNowAlumniOrDosen) {
+      // Find or create default alumni group
+      let alumniGroup = await Conversation.findOne({ type: 'community', is_default_alumni: true });
+      if (!alumniGroup) {
+        alumniGroup = await Conversation.create({
+          type: 'community',
+          is_default_alumni: true,
+          name: 'Ikatan Alumni',
+          description: 'Grup komunitas resmi bagi para alumni, mahasiswa tidak aktif, dan dosen.',
+          participants: [user._id]
+        });
       } else {
-        // Kick from alumni group
-        await Conversation.updateOne(
-          { type: 'community', is_default_alumni: true }, 
-          { $pull: { participants: user._id } }
-        );
+        await Conversation.updateOne({ _id: alumniGroup._id }, { $addToSet: { participants: user._id } });
       }
+    } else {
+      // Kick from alumni group
+      await Conversation.updateOne(
+        { type: 'community', is_default_alumni: true }, 
+        { $pull: { participants: user._id } }
+      );
     }
 
     const userResponse = user.toObject();

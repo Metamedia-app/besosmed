@@ -30,7 +30,9 @@ export async function syncSubjectChat(request, reply) {
     lecturer_nim,
     students, 
     duration_minutes,
-    expires_at // Format baru: YYYY-MM-DD
+    expires_at, // Format baru: YYYY-MM-DD
+    kelas,
+    code_prodi
   } = request.body; 
 
   if (!subject_code || !subject_name || !students || !Array.isArray(students)) {
@@ -51,8 +53,8 @@ export async function syncSubjectChat(request, reply) {
   }
 
   try {
-    // 1. Cari atau Buat Mata Kuliah
-    let subject = await Subject.findOne({ code: subject_code });
+    // 1. Cari atau Buat Mata Kuliah (Diferensiasi by code_prodi)
+    let subject = await Subject.findOne({ code: subject_code, code_prodi: code_prodi || null });
     
     // Cari ID Dosen jika ada lecturer_nim
     let lecturerId = null;
@@ -66,7 +68,8 @@ export async function syncSubjectChat(request, reply) {
         code: subject_code,
         name: subject_name,
         academic_year: academic_year || '2023/2024',
-        lecturer_id: lecturerId
+        lecturer_id: lecturerId,
+        code_prodi: code_prodi || null
       });
     } else if (lecturerId) {
       // Update dosen jika ada perubahan
@@ -74,13 +77,14 @@ export async function syncSubjectChat(request, reply) {
       await subject.save();
     }
 
-    // 2. Cari atau Buat Percakapan (Group) untuk MK ini
-    let conv = await Conversation.findOne({ subject_id: subject._id, type: 'group' });
+    // 2. Cari atau Buat Percakapan (Group) untuk MK ini (Diferensiasi by class_name)
+    let conv = await Conversation.findOne({ subject_id: subject._id, class_name: kelas || null, type: 'group' });
     
     if (!conv) {
       conv = await Conversation.create({
         type: 'group',
-        name: subject.name,
+        name: kelas ? `${subject.name} - ${kelas}` : subject.name,
+        class_name: kelas || null,
         subject_id: subject._id,
         participants: lecturerId ? [lecturerId] : [], // Masukkan dosen di awal jika ada
         expiresAt: expiresAt 
@@ -133,17 +137,25 @@ export async function syncSubjectChat(request, reply) {
  */
 export async function getMySubjectGroups(request, reply) {
   const userId = request.user.id;
+  const userRole = request.user.role;
 
   try {
-    const groups = await Conversation.find({
+    const query = {
       participants: userId,
-      type: 'group',
-      $or: [
+      type: 'group'
+    };
+
+    // Jika Mahasiswa (user), hanya tampilkan yang belum expired
+    if (userRole === 'user') {
+      query.$or = [
         { expiresAt: null },
         { expiresAt: { $exists: false } },
         { expiresAt: { $gt: new Date() } }
-      ]
-    })
+      ];
+    }
+    // Jika Dosen atau Admin, biarkan semua muncul (arsip)
+
+    const groups = await Conversation.find(query)
     .populate('subject_id', 'code name academic_year')
     .populate({
       path: 'last_message',
@@ -243,6 +255,14 @@ export async function sendGroupMessage(request, reply) {
 
     // Ambil info grup untuk mendapatkan waktu kadaluarsa (jika ada)
     const conversationInfo = await Conversation.findById(conversationId).select('expiresAt is_muted');
+
+    // --- PROTEKSI GRUP EXPIRED (ARSIP) ---
+    if (conversationInfo && conversationInfo.expiresAt && conversationInfo.expiresAt < new Date()) {
+      return reply.status(403).send({
+        success: false,
+        message: 'Grup Mata Kuliah ini sudah berakhir (Expired) dan hanya tersedia sebagai arsip. Anda tidak dapat mengirim pesan lagi.'
+      });
+    }
 
     // --- PROTEKSI MUTE GRUP MATKUL ---
     if (conversationInfo && conversationInfo.is_muted) {
@@ -625,7 +645,9 @@ export async function importSubjectsFromExcel(request, reply) {
         academic_year,
         lecturer_nim,
         expires_at,
-        students
+        students,
+        kelas,
+        code_prodi
       } = row;
 
       // Skip jika data kosongan
@@ -684,20 +706,25 @@ export async function importSubjectsFromExcel(request, reply) {
       }
 
       // 1. Buat / Update Mata Kuliah
-      let subject = await Subject.findOne({ code: subject_code?.toString() });
+      let subject = await Subject.findOne({ 
+        code: subject_code?.toString(),
+        code_prodi: code_prodi?.toString() || null 
+      });
       if (!subject) {
         subject = await Subject.create({
           code: subject_code.toString(),
           name: subject_name,
           academic_year: academic_year || new Date().getFullYear().toString(),
           lecturer_id: lecturerId,
+          code_prodi: code_prodi?.toString() || null
         });
       }
 
       // 2. Buat / Update Room Chat — gunakan type: 'group' sesuai schema enum
       let conv = await Conversation.findOne({
         type: 'group',
-        subject_id: subject._id
+        subject_id: subject._id,
+        class_name: kelas?.toString() || null
       });
 
       const finalParticipants = lecturerId ? [...studentIds, lecturerId] : studentIds;
@@ -706,7 +733,8 @@ export async function importSubjectsFromExcel(request, reply) {
         conv = await Conversation.create({
           type: 'group',
           subject_id: subject._id,
-          name: subject_name,
+          name: kelas ? `${subject_name} - ${kelas}` : subject_name,
+          class_name: kelas?.toString() || null,
           participants: finalParticipants,
           expiresAt: expiresAt
         });

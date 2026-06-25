@@ -32,6 +32,8 @@ export default async function subjectChatRoutes(fastify) {
           academic_year: { type: 'string' },
           lecturer_nim: { type: 'string', description: 'NIM Dosen pengampu' },
           expires_at: { type: 'string', description: 'Tanggal kadaluarsa grup (Format: YYYY-MM-DD)' },
+          kelas: { type: 'string', description: 'Kode/Nama Kelas (Misal: INFA 1)' },
+          code_prodi: { type: 'string', description: 'Kode Prodi (Misal: INFA)' },
           students: { 
             type: 'array', 
             items: { type: 'string' }

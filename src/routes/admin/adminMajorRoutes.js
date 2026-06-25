@@ -26,7 +26,9 @@ async function adminMajorRoutes(fastify) {
                 properties: {
                   _id: { type: 'string' },
                   name: { type: 'string' },
-                  faculty: { type: 'string' }
+                  faculty: { type: 'string' },
+                  code_prodi: { type: 'string' },
+                  singkatan: { type: 'string' }
                 }
               }
             }
@@ -50,7 +52,9 @@ async function adminMajorRoutes(fastify) {
         required: ['name'],
         properties: {
           name: { type: 'string', description: 'Nama Program Studi' },
-          faculty: { type: 'string', description: 'Fakultas (opsional)' }
+          faculty: { type: 'string', description: 'Fakultas (opsional)' },
+          code_prodi: { type: 'string', description: 'Kode Prodi unik (opsional)' },
+          singkatan: { type: 'string', description: 'Singkatan Prodi (opsional, misal: INFA)' }
         }
       },
       response: {

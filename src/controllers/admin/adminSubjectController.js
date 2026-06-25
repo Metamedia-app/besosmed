@@ -6,8 +6,12 @@ import User from '../../models/User.js';
  * Mendapatkan daftar semua Mata Kuliah (Untuk Dropdown)
  */
 export async function getAllSubjects(request, reply) {
+  const { code_prodi } = request.query;
   try {
-    const subjects = await Subject.find().sort({ name: 1 });
+    const filter = {};
+    if (code_prodi) filter.code_prodi = code_prodi;
+
+    const subjects = await Subject.find(filter).sort({ name: 1 });
     return reply.send({ success: true, data: subjects });
   } catch (error) {
     return reply.status(500).send({ success: false, message: 'Gagal mengambil daftar mata kuliah.' });
@@ -18,20 +22,24 @@ export async function getAllSubjects(request, reply) {
  * Membuat Mata Kuliah baru secara manual
  */
 export async function createSubject(request, reply) {
-  const { code, name, academic_year, lecturer_name } = request.body;
+  const { code, name, academic_year, lecturer_name, curriculum_year, sks, semester, code_prodi } = request.body;
 
   try {
-    // Cek apakah kode sudah ada
-    const existing = await Subject.findOne({ code });
+    // Cek apakah kode + prodi sudah ada
+    const existing = await Subject.findOne({ code, code_prodi: code_prodi || null });
     if (existing) {
-      return reply.status(400).send({ success: false, message: 'Kode mata kuliah sudah terdaftar.' });
+      return reply.status(400).send({ success: false, message: 'Kode mata kuliah dengan prodi tersebut sudah terdaftar.' });
     }
 
     const subject = await Subject.create({
       code,
       name,
       academic_year,
-      lecturer_name
+      lecturer_name,
+      curriculum_year,
+      sks,
+      semester,
+      code_prodi
     });
 
     return reply.status(201).send({ success: true, message: 'Mata kuliah berhasil dibuat.', data: subject });
@@ -151,12 +159,12 @@ export async function removeMemberFromGroup(request, reply) {
  */
 export async function editSubject(request, reply) {
   const { id } = request.params;
-  const { code, name, academic_year, lecturer_name } = request.body;
+  const { code, name, academic_year, lecturer_name, curriculum_year, sks, semester, code_prodi } = request.body;
 
   try {
     const subject = await Subject.findByIdAndUpdate(
       id,
-      { code, name, academic_year, lecturer_name },
+      { code, name, academic_year, lecturer_name, curriculum_year, sks, semester, code_prodi },
       { new: true, runValidators: true }
     );
 

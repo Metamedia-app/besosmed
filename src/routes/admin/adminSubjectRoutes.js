@@ -27,6 +27,12 @@ export default async function adminSubjectRoutes(fastify) {
     schema: {
       tags: ['Admin Dashboard'],
       summary: 'Admin: Ambil semua daftar mata kuliah (Untuk Dropdown)',
+      querystring: {
+        type: 'object',
+        properties: {
+          code_prodi: { type: 'string', description: 'Filter berdasarkan Kode Prodi' }
+        }
+      },
       security: [{ bearerAuth: [] }]
     }
   }, getAllSubjects);
@@ -42,7 +48,11 @@ export default async function adminSubjectRoutes(fastify) {
           code: { type: 'string' },
           name: { type: 'string' },
           academic_year: { type: 'string' },
-          lecturer_name: { type: 'string' }
+          lecturer_name: { type: 'string' },
+          curriculum_year: { type: 'string' },
+          sks: { type: 'number' },
+          semester: { type: 'number' },
+          code_prodi: { type: 'string' }
         }
       },
       security: [{ bearerAuth: [] }]
@@ -63,7 +73,11 @@ export default async function adminSubjectRoutes(fastify) {
           code: { type: 'string' },
           name: { type: 'string' },
           academic_year: { type: 'string' },
-          lecturer_name: { type: 'string' }
+          lecturer_name: { type: 'string' },
+          curriculum_year: { type: 'string' },
+          sks: { type: 'number' },
+          semester: { type: 'number' },
+          code_prodi: { type: 'string' }
         }
       },
       security: [{ bearerAuth: [] }]

@@ -64,9 +64,6 @@ const messageSchema = new mongoose.Schema(
   }
 );
 
-// Index TTL: MongoDB akan otomatis menghapus pesan saat mencapai waktu expiresAt
-messageSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
-
 // Index untuk performa penarikan chat sejarah
 messageSchema.index({ conversation_id: 1, createdAt: -1 });
 

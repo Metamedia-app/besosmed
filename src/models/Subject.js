@@ -5,7 +5,6 @@ const subjectSchema = new mongoose.Schema(
     code: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
       index: true,
     },
@@ -14,9 +13,26 @@ const subjectSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    curriculum_year: {
+      type: String, // Contoh: "Kurikulum 2020"
+      trim: true,
+    },
     academic_year: {
       type: String, // Contoh: "2023/2024 Ganjil"
       required: true,
+      index: true,
+    },
+    sks: {
+      type: Number,
+      default: 0,
+    },
+    semester: {
+      type: Number,
+      index: true,
+    },
+    code_prodi: {
+      type: String,
+      trim: true,
       index: true,
     },
     lecturer_name: {
@@ -39,6 +55,9 @@ const subjectSchema = new mongoose.Schema(
     collection: 'subjects',
   }
 );
+
+// Unik per kombinasi Kode MK + Kode Prodi
+subjectSchema.index({ code: 1, code_prodi: 1 }, { unique: true });
 
 const Subject = mongoose.model('Subject', subjectSchema);
 export default Subject;

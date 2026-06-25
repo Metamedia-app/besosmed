@@ -40,6 +40,10 @@ const conversationSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    class_name: {
+      type: String, // Contoh: "INFA 1", "Bisdig 2"
+      trim: true,
+    },
     subject_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Subject',
@@ -82,9 +86,6 @@ const conversationSchema = new mongoose.Schema(
 
 // Pastikan pencarian pasangan participants cepat
 conversationSchema.index({ participants: 1 });
-
-// Index TTL: MongoDB akan otomatis menghapus dokumen saat mencapai waktu expiresAt
-conversationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const Conversation = mongoose.model('Conversation', conversationSchema);
 export default Conversation;
