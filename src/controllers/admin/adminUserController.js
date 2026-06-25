@@ -58,7 +58,7 @@ export async function createUser(request, reply) {
     delete userResponse.password;
 
     // ---- AUTO SYNC ALUMNI GROUP (Dosen & Alumni) ----
-    const isAlumniOrDosen = (role === 'dosen') || ['ALUMNI', 'TIDAK_AKTIF', 'TIDAK AKTIF'].includes(status_mahasiswa?.toUpperCase() || '');
+    const isAlumniOrDosen = (role === 'dosen') || (status_mahasiswa?.toUpperCase() === 'ALUMNI');
     
     if (isAlumniOrDosen) {
       let alumniGroup = await Conversation.findOne({ type: 'community', is_default_alumni: true });
@@ -178,7 +178,7 @@ export async function importUsersFromExcel(request, reply) {
 
       // ---- AUTO SYNC ALUMNI GROUP (Dosen & Alumni) ----
       const finalStatus = status_mahasiswa?.toString() || 'AKTIF';
-      const isAlumniOrDosen = (userRole === 'dosen') || ['ALUMNI', 'TIDAK_AKTIF', 'TIDAK AKTIF'].includes(finalStatus.toUpperCase());
+      const isAlumniOrDosen = (userRole === 'dosen') || (finalStatus.toUpperCase() === 'ALUMNI');
       
       if (isAlumniOrDosen) {
         let alumniGroup = await Conversation.findOne({ type: 'community', is_default_alumni: true });
@@ -245,7 +245,7 @@ export async function editUser(request, reply) {
     await user.save();
 
     // ---- AUTO SYNC ALUMNI GROUP (Dosen & Alumni) ----
-    const isNowAlumniOrDosen = (user.role === 'dosen') || ['ALUMNI', 'TIDAK_AKTIF', 'TIDAK AKTIF'].includes(user.status_mahasiswa?.toUpperCase() || '');
+    const isNowAlumniOrDosen = (user.role === 'dosen') || (user.status_mahasiswa?.toUpperCase() === 'ALUMNI');
 
     if (isNowAlumniOrDosen) {
       // Find or create default alumni group
