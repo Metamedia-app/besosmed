@@ -56,8 +56,8 @@ const subjectSchema = new mongoose.Schema(
   }
 );
 
-// Unik per kombinasi Kode MK + Kode Prodi
-subjectSchema.index({ code: 1, code_prodi: 1 }, { unique: true });
+// Unik per kombinasi Kode MK + Kode Prodi + Tahun Ajaran
+subjectSchema.index({ code: 1, code_prodi: 1, academic_year: 1 }, { unique: true });
 
 const Subject = mongoose.model('Subject', subjectSchema);
 export default Subject;

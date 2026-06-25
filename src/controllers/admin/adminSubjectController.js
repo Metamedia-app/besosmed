@@ -25,8 +25,12 @@ export async function createSubject(request, reply) {
   const { code, name, academic_year, lecturer_name, curriculum_year, sks, semester, code_prodi } = request.body;
 
   try {
-    // Cek apakah kode + prodi sudah ada
-    const existing = await Subject.findOne({ code, code_prodi: code_prodi || null });
+    // Cek apakah kode + prodi + tahun ajaran sudah ada
+    const existing = await Subject.findOne({ 
+      code, 
+      code_prodi: code_prodi || null,
+      academic_year: academic_year 
+    });
     if (existing) {
       return reply.status(400).send({ success: false, message: 'Kode mata kuliah dengan prodi tersebut sudah terdaftar.' });
     }

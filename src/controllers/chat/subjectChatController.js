@@ -53,8 +53,12 @@ export async function syncSubjectChat(request, reply) {
   }
 
   try {
-    // 1. Cari atau Buat Mata Kuliah (Diferensiasi by code_prodi)
-    let subject = await Subject.findOne({ code: subject_code, code_prodi: code_prodi || null });
+    // 1. Cari atau Buat Mata Kuliah (Diferensiasi by code_prodi & academic_year)
+    let subject = await Subject.findOne({ 
+      code: subject_code, 
+      code_prodi: code_prodi || null,
+      academic_year: academic_year || '2023/2024'
+    });
     
     // Cari ID Dosen jika ada lecturer_nim
     let lecturerId = null;
@@ -83,7 +87,7 @@ export async function syncSubjectChat(request, reply) {
     if (!conv) {
       conv = await Conversation.create({
         type: 'group',
-        name: kelas ? `${subject.name} - ${kelas}` : subject.name,
+        name: kelas ? `${subject.name} - ${kelas} (${subject.academic_year})` : `${subject.name} (${subject.academic_year})`,
         class_name: kelas || null,
         subject_id: subject._id,
         participants: lecturerId ? [lecturerId] : [], // Masukkan dosen di awal jika ada
@@ -708,7 +712,8 @@ export async function importSubjectsFromExcel(request, reply) {
       // 1. Buat / Update Mata Kuliah
       let subject = await Subject.findOne({ 
         code: subject_code?.toString(),
-        code_prodi: code_prodi?.toString() || null 
+        code_prodi: code_prodi?.toString() || null,
+        academic_year: academic_year || new Date().getFullYear().toString()
       });
       if (!subject) {
         subject = await Subject.create({
@@ -733,7 +738,7 @@ export async function importSubjectsFromExcel(request, reply) {
         conv = await Conversation.create({
           type: 'group',
           subject_id: subject._id,
-          name: kelas ? `${subject_name} - ${kelas}` : subject_name,
+          name: kelas ? `${subject_name} - ${kelas} (${subject.academic_year})` : `${subject_name} (${subject.academic_year})`,
           class_name: kelas?.toString() || null,
           participants: finalParticipants,
           expiresAt: expiresAt
