@@ -2,6 +2,7 @@ import Subject from '../../models/Subject.js';
 import Conversation from '../../models/Conversation.js';
 import User from '../../models/User.js';
 import Message from '../../models/Message.js';
+import ModerationLog from '../../models/ModerationLog.js';
 import { encryptMessage, decryptMessage, encryptBuffer } from '../../services/encryptionService.js';
 import { uploadFile, deleteFile } from '../../services/r2Service.js';
 import { emitGroupMessage, emitGroupTypingStatus, emitUnreadUpdate, emitMessageStatusUpdate } from '../../services/wsService.js';
@@ -283,10 +284,16 @@ export async function sendGroupMessage(request, reply) {
       }
     }
 
-    // --- FILTER KATA KASAR ---
-    if (containsToxicWords(body)) {
-      return reply.status(400).send({ success: false, message: 'Pesanmu mengandung kata-kata yang tidak pantas. Mohon gunakan bahasa yang sopan.' });
-    }
+// --- FILTER KATA KASAR ---
+if (containsToxicWords(body)) {
+  // Log ke database untuk analytics
+  await ModerationLog.create({
+    conversation_id: conversationId,
+    user_id: senderId,
+    content: body
+  });
+  return reply.status(400).send({ success: false, message: 'Pesanmu mengandung kata-kata yang tidak pantas. Mohon gunakan bahasa yang sopan.' });
+}
 
     // Enkripsi pesan teks
     const encryptedBody = encryptMessage(body);

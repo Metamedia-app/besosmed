@@ -8,6 +8,7 @@ import {
   getGroupMembers,
   removeMemberFromGroup
 } from '../../controllers/admin/adminSubjectController.js';
+import { getGroupAnalytics, exportGroupAnalyticsPDF } from '../../controllers/admin/adminAnalyticController.js';
 
 export default async function adminSubjectRoutes(fastify) {
   // Hanya Admin yang boleh lewat sini
@@ -156,4 +157,29 @@ export default async function adminSubjectRoutes(fastify) {
       security: [{ bearerAuth: [] }]
     }
   }, addMembersToGroup);
+
+  // --- ANALYTICS ROUTES ---
+  fastify.get('/groups/:conversationId/analytics', {
+    schema: {
+      tags: ['Admin Dashboard'],
+      summary: 'Admin: Ambil data statistik/analitik sebuah grup matkul (JSON)',
+      params: {
+        type: 'object',
+        properties: { conversationId: { type: 'string' } }
+      },
+      security: [{ bearerAuth: [] }]
+    }
+  }, getGroupAnalytics);
+
+  fastify.get('/groups/:conversationId/analytics/pdf', {
+    schema: {
+      tags: ['Admin Dashboard'],
+      summary: 'Admin: Download Laporan Analitik Grup (PDF)',
+      params: {
+        type: 'object',
+        properties: { conversationId: { type: 'string' } }
+      },
+      security: [{ bearerAuth: [] }]
+    }
+  }, exportGroupAnalyticsPDF);
 }

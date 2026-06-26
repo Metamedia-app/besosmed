@@ -1,17 +1,25 @@
+import badWordsIndo from 'indonesian-badwords';
+
 /**
- * Daftar kata kasar sederhana (Bisa ditambah nanti)
+ * Daftar kata kasar kustom tambahan (Bisa ditambah manual)
  */
-const badWords = [
-  'anjing', 'babi', 'monyet', 'bangsat', 'tolol', 'goblok', 
-  'kontol', 'memek', 'pepek', 'itil', 'perek', 'lonte',
-  'fuck', 'shit', 'asshole', 'bitch', 'idiot'
+const customBadWords = [
+  'lonte', 'perek', 'itil', 'pepek', 'memek', 'kontol'
 ];
 
 /**
- * Cek apakah teks mengandung kata kasar
+ * Cek apakah teks mengandung kata kasar menggunakan library & kustom
  */
 export function containsToxicWords(text) {
   if (!text) return false;
+  
   const lowerText = text.toLowerCase();
-  return badWords.some(word => lowerText.includes(word));
+  
+  // 1. Cek dari library indonesian-badwords
+  if (badWordsIndo.flag(lowerText)) {
+    return true;
+  }
+
+  // 2. Cek dari daftar kustom kita (Pembalut kalau library kurang lengkap)
+  return customBadWords.some(word => lowerText.includes(word));
 }
