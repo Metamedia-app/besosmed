@@ -22,14 +22,13 @@ export async function getAllSubjects(request, reply) {
  * Membuat Mata Kuliah baru secara manual
  */
 export async function createSubject(request, reply) {
-  const { code, name, academic_year, lecturer_name, curriculum_year, sks, semester, code_prodi } = request.body;
+  const { code, name, lecturer_name, curriculum_year, sks, semester, code_prodi } = request.body;
 
   try {
-    // Cek apakah kode + prodi + tahun ajaran sudah ada
+    // Cek apakah kode + prodi sudah ada (Master Data)
     const existing = await Subject.findOne({ 
       code, 
-      code_prodi: code_prodi || null,
-      academic_year: academic_year 
+      code_prodi: code_prodi || null
     });
     if (existing) {
       return reply.status(400).send({ success: false, message: 'Kode mata kuliah dengan prodi tersebut sudah terdaftar.' });
@@ -38,7 +37,6 @@ export async function createSubject(request, reply) {
     const subject = await Subject.create({
       code,
       name,
-      academic_year,
       lecturer_name,
       curriculum_year,
       sks,
@@ -94,13 +92,14 @@ export async function addMembersToGroup(request, reply) {
 export async function getAllGroups(request, reply) {
   try {
     const groups = await Conversation.find({ type: 'group' })
-      .populate('subject_id', 'code name academic_year')
+      .populate('subject_id', 'code name')
       .sort({ createdAt: -1 })
       .lean();
 
     const formatted = groups.map(g => ({
       _id: g._id,
       name: g.name,
+      academic_year: g.academic_year, // Ambil dari grup
       subject_info: g.subject_id,
       member_count: g.participants.length,
       expires_at: g.expiresAt,
@@ -163,12 +162,12 @@ export async function removeMemberFromGroup(request, reply) {
  */
 export async function editSubject(request, reply) {
   const { id } = request.params;
-  const { code, name, academic_year, lecturer_name, curriculum_year, sks, semester, code_prodi } = request.body;
+  const { code, name, lecturer_name, curriculum_year, sks, semester, code_prodi } = request.body;
 
   try {
     const subject = await Subject.findByIdAndUpdate(
       id,
-      { code, name, academic_year, lecturer_name, curriculum_year, sks, semester, code_prodi },
+      { code, name, lecturer_name, curriculum_year, sks, semester, code_prodi },
       { new: true, runValidators: true }
     );
 

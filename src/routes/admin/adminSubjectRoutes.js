@@ -43,11 +43,10 @@ export default async function adminSubjectRoutes(fastify) {
       summary: 'Admin: Buat Mata Kuliah baru secara manual',
       body: {
         type: 'object',
-        required: ['code', 'name', 'academic_year'],
+        required: ['code', 'name'],
         properties: {
           code: { type: 'string' },
           name: { type: 'string' },
-          academic_year: { type: 'string' },
           lecturer_name: { type: 'string' },
           curriculum_year: { type: 'string' },
           sks: { type: 'number' },
@@ -72,7 +71,6 @@ export default async function adminSubjectRoutes(fastify) {
         properties: {
           code: { type: 'string' },
           name: { type: 'string' },
-          academic_year: { type: 'string' },
           lecturer_name: { type: 'string' },
           curriculum_year: { type: 'string' },
           sks: { type: 'number' },

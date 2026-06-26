@@ -53,11 +53,10 @@ export async function syncSubjectChat(request, reply) {
   }
 
   try {
-    // 1. Cari atau Buat Mata Kuliah (Diferensiasi by code_prodi & academic_year)
+    // 1. Cari atau Buat Mata Kuliah (Diferensiasi by code_prodi saja)
     let subject = await Subject.findOne({ 
       code: subject_code, 
-      code_prodi: code_prodi || null,
-      academic_year: academic_year || '2023/2024'
+      code_prodi: code_prodi || null
     });
     
     // Cari ID Dosen jika ada lecturer_nim
@@ -71,7 +70,6 @@ export async function syncSubjectChat(request, reply) {
       subject = await Subject.create({
         code: subject_code,
         name: subject_name,
-        academic_year: academic_year || '2023/2024',
         lecturer_id: lecturerId,
         code_prodi: code_prodi || null
       });
@@ -81,14 +79,20 @@ export async function syncSubjectChat(request, reply) {
       await subject.save();
     }
 
-    // 2. Cari atau Buat Percakapan (Group) untuk MK ini (Diferensiasi by class_name)
-    let conv = await Conversation.findOne({ subject_id: subject._id, class_name: kelas || null, type: 'group' });
+    // 2. Cari atau Buat Percakapan (Group) untuk MK ini (Diferensiasi by class_name & academic_year)
+    let conv = await Conversation.findOne({ 
+      subject_id: subject._id, 
+      class_name: kelas || null, 
+      academic_year: academic_year || '2023/2024',
+      type: 'group' 
+    });
     
     if (!conv) {
       conv = await Conversation.create({
         type: 'group',
-        name: kelas ? `${subject.name} - ${kelas} (${subject.academic_year})` : `${subject.name} (${subject.academic_year})`,
+        name: kelas ? `${subject.name} - ${kelas} (${academic_year || '2023/2024'})` : `${subject.name} (${academic_year || '2023/2024'})`,
         class_name: kelas || null,
+        academic_year: academic_year || '2023/2024',
         subject_id: subject._id,
         participants: lecturerId ? [lecturerId] : [], // Masukkan dosen di awal jika ada
         expiresAt: expiresAt 
@@ -160,7 +164,7 @@ export async function getMySubjectGroups(request, reply) {
     // Jika Dosen atau Admin, biarkan semua muncul (arsip)
 
     const groups = await Conversation.find(query)
-    .populate('subject_id', 'code name academic_year')
+    .populate('subject_id', 'code name')
     .populate({
       path: 'last_message',
       select: 'body sender_id createdAt is_deleted_for_everyone deleted_by',
@@ -516,7 +520,7 @@ export async function getGroupDetail(request, reply) {
     const responseData = {
       _id: conv._id,
       name: conv.name || subject?.name,
-      description: `Mata Kuliah: ${subject?.code || '-'} (${subject?.academic_year || '-'})`,
+      description: `Mata Kuliah: ${subject?.code || '-'} (${conv.academic_year || '-'})`,
       avatar_url: conv.avatar_url || '',
       // Dosen dianggap sebagai Creator/Admin di grup matkul
       creator: lecturer || null,
@@ -709,27 +713,28 @@ export async function importSubjectsFromExcel(request, reply) {
         if (lecturer) lecturerId = lecturer._id;
       }
 
-      // 1. Buat / Update Mata Kuliah
+      // 1. Buat / Update Mata Kuliah (Master Data)
       let subject = await Subject.findOne({ 
         code: subject_code?.toString(),
-        code_prodi: code_prodi?.toString() || null,
-        academic_year: academic_year || new Date().getFullYear().toString()
+        code_prodi: code_prodi?.toString() || null
       });
       if (!subject) {
         subject = await Subject.create({
           code: subject_code.toString(),
           name: subject_name,
-          academic_year: academic_year || new Date().getFullYear().toString(),
           lecturer_id: lecturerId,
           code_prodi: code_prodi?.toString() || null
         });
       }
 
-      // 2. Buat / Update Room Chat — gunakan type: 'group' sesuai schema enum
+      // 2. Buat / Update Room Chat — Diferensiasi by class_name & academic_year
+      const finalAcademicYear = academic_year?.toString() || new Date().getFullYear().toString();
+
       let conv = await Conversation.findOne({
         type: 'group',
         subject_id: subject._id,
-        class_name: kelas?.toString() || null
+        class_name: kelas?.toString() || null,
+        academic_year: finalAcademicYear
       });
 
       const finalParticipants = lecturerId ? [...studentIds, lecturerId] : studentIds;
@@ -738,8 +743,9 @@ export async function importSubjectsFromExcel(request, reply) {
         conv = await Conversation.create({
           type: 'group',
           subject_id: subject._id,
-          name: kelas ? `${subject_name} - ${kelas} (${subject.academic_year})` : `${subject_name} (${subject.academic_year})`,
+          name: kelas ? `${subject_name} - ${kelas} (${finalAcademicYear})` : `${subject_name} (${finalAcademicYear})`,
           class_name: kelas?.toString() || null,
+          academic_year: finalAcademicYear,
           participants: finalParticipants,
           expiresAt: expiresAt
         });

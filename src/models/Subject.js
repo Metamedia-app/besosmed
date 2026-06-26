@@ -17,11 +17,6 @@ const subjectSchema = new mongoose.Schema(
       type: String, // Contoh: "Kurikulum 2020"
       trim: true,
     },
-    academic_year: {
-      type: String, // Contoh: "2023/2024 Ganjil"
-      required: true,
-      index: true,
-    },
     sks: {
       type: Number,
       default: 0,
@@ -56,8 +51,8 @@ const subjectSchema = new mongoose.Schema(
   }
 );
 
-// Unik per kombinasi Kode MK + Kode Prodi + Tahun Ajaran
-subjectSchema.index({ code: 1, code_prodi: 1, academic_year: 1 }, { unique: true });
+// Unik per kombinasi Kode MK + Kode Prodi (Kurikulum Master)
+subjectSchema.index({ code: 1, code_prodi: 1 }, { unique: true });
 
 const Subject = mongoose.model('Subject', subjectSchema);
 export default Subject;

@@ -76,6 +76,11 @@ const conversationSchema = new mongoose.Schema(
     is_muted: {
       type: Boolean,
       default: false,
+    },
+    academic_year: {
+      type: String, // Contoh: "2023/2024"
+      trim: true,
+      index: true,
     }
   },
   {
@@ -86,6 +91,13 @@ const conversationSchema = new mongoose.Schema(
 
 // Pastikan pencarian pasangan participants cepat
 conversationSchema.index({ participants: 1 });
+
+// Unik per Matkul + Kelas + Tahun Ajaran (Diferensiasi Angkatan)
+// Hanya berlaku untuk type: group
+conversationSchema.index(
+  { subject_id: 1, class_name: 1, academic_year: 1 }, 
+  { unique: true, partialFilterExpression: { type: 'group' } }
+);
 
 const Conversation = mongoose.model('Conversation', conversationSchema);
 export default Conversation;
