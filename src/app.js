@@ -27,6 +27,7 @@ import communityChatRoutes from './routes/chat/communityChatRoutes.js';
 import subjectChatRoutes from './routes/chat/subjectChatRoutes.js';
 import subjectFeatureRoutes from './routes/chat/subjectFeatureRoutes.js';
 import systemRoutes from './routes/system/index.js';
+import adminDashboardRoutes from './routes/admin/adminDashboardRoutes.js';
 import { startReminderService } from './services/reminderService.js';
 
 export async function buildApp(opts = {}) {
@@ -68,6 +69,7 @@ export async function buildApp(opts = {}) {
   await app.register(subjectChatRoutes, { prefix: '/api/v1/chat-matkul' });
   await app.register(subjectFeatureRoutes, { prefix: '/api/v1/chat' });
   await app.register(systemRoutes, { prefix: '/api/v1/system' });
+  await app.register(adminDashboardRoutes, { prefix: '/api/v1/admin' });
 
   // ── Global Error Handler ───────────────────────────────
   app.setErrorHandler((error, request, reply) => {
