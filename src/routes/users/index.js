@@ -4,6 +4,7 @@ import { followUser, unfollowUser, getFollowers, getFollowing } from '../../cont
 import { searchUsers } from '../../controllers/users/searchUser.js';
 import { getUserPosts } from '../../controllers/posts/getUserPosts.js';
 import { updateFcmToken, removeFcmToken } from '../../controllers/users/fcmController.js';
+import { getSuggestions } from '../../controllers/users/suggestionController.js';
 
 async function userRoutes(fastify) {
   const auth = { onRequest: [fastify.authenticate] };
@@ -27,6 +28,47 @@ async function userRoutes(fastify) {
     },
     handler: searchUsers,
   });
+
+  // ── GET /suggestions ─────────────────────────────────────────────────────────
+  fastify.get('/suggestions', {
+    ...auth,
+    schema: {
+      tags: ['Profile'],
+      summary: 'Get Friend Suggestions',
+      description: 'Mendapatkan rekomendasi teman untuk akun yang sedang login (Satu prodi & Acak).',
+      querystring: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer', default: 10 }
+        }
+      },
+      security: [{ bearerAuth: [] }],
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  _id: { type: 'string' },
+                  nama: { type: 'string' },
+                  nim: { type: 'string' },
+                  program_studi: { type: 'string' },
+                  avatar_url: { type: 'string' },
+                  role: { type: 'string' }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    handler: getSuggestions,
+  });
+
 
   // ── GET /me ──────────────────────────────────────────────────────────────────
   fastify.get('/me', {
