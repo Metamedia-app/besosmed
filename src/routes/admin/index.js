@@ -4,7 +4,8 @@ import {
   takedownPost, 
   untakedownPost,
   banUser, 
-  unbanUser 
+  unbanUser,
+  getAlumniCommunitiesAdmin
 } from '../../controllers/admin/adminModerationController.js';
 import { 
   searchUsersAdmin, 
@@ -178,6 +179,49 @@ export default async function adminRoutes(fastify) {
         },
       },
       handler: updateReportStatus,
+    });
+
+    // List Alumni Communities (Admin)
+    adminGroup.get('/communities/alumni', {
+      schema: {
+        tags: ['Admin Dashboard'],
+        summary: 'Melihat semua komunitas alumni untuk manajemen',
+        security: [{ bearerAuth: [] }],
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    _id: { type: 'string' },
+                    name: { type: 'string' },
+                    description: { type: 'string' },
+                    avatar_url: { type: 'string' },
+                    is_default_alumni: { type: 'boolean' },
+                    creator_id: {
+                      type: 'object',
+                      nullable: true,
+                      properties: {
+                        _id: { type: 'string' },
+                        nama: { type: 'string' },
+                        nim: { type: 'string' },
+                        avatar_url: { type: 'string' }
+                      }
+                    },
+                    createdAt: { type: 'string' },
+                    updatedAt: { type: 'string' }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      handler: getAlumniCommunitiesAdmin,
     });
   });
 }

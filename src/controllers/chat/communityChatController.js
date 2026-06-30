@@ -642,3 +642,134 @@ export async function markCommunityAsRead(request, reply) {
     return reply.status(500).send({ success: false, message: 'Gagal menandai pesan.' });
   }
 }
+
+/**
+ * 10. Keluar dari Komunitas (Leave Community)
+ */
+export async function leaveCommunity(request, reply) {
+  const userId = request.user.id;
+  const { communityId } = request.params;
+
+  try {
+    const community = await Conversation.findOne({ _id: communityId, type: 'community' });
+    if (!community) {
+      return reply.status(404).send({ success: false, message: 'Komunitas tidak ditemukan.' });
+    }
+
+    // Ikatan Alumni TIDAK BISA di-leave
+    if (community.is_default_alumni) {
+      return reply.status(403).send({ success: false, message: 'Anda tidak dapat keluar dari komunitas Ikatan Alumni.' });
+    }
+
+    const isMember = community.participants.map(p => p.toString()).includes(userId);
+    if (!isMember) {
+      return reply.status(400).send({ success: false, message: 'Anda bukan anggota komunitas ini.' });
+    }
+
+    // Cabut dari list participants dan admins
+    await Conversation.findByIdAndUpdate(communityId, {
+      $pull: { participants: userId, admins: userId }
+    });
+
+    return reply.send({ success: true, message: 'Berhasil keluar dari komunitas.' });
+  } catch (error) {
+    request.log.error(error);
+    return reply.status(500).send({ success: false, message: 'Gagal keluar dari komunitas.' });
+  }
+}
+
+/**
+ * 11. Edit Komunitas (Ubah Judul / Avatar / Deskripsi)
+ */
+export async function editCommunity(request, reply) {
+  const userId = request.user.id;
+  const { communityId } = request.params;
+
+  try {
+    const community = await Conversation.findOne({ _id: communityId, type: 'community' });
+    if (!community) {
+      return reply.status(404).send({ success: false, message: 'Komunitas tidak ditemukan.' });
+    }
+
+    // Aturan Otorisasi
+    const isAdminUser = request.user.role === 'admin';
+    if (community.is_default_alumni) {
+      // Khusus Ikatan Alumni: Hanya admin sistem (Super Admin)
+      if (!isAdminUser) {
+        return reply.status(403).send({ 
+          success: false, 
+          message: 'Hanya Admin yang dapat mengedit komunitas Ikatan Alumni.' 
+        });
+      }
+    } else {
+      // Grup Komunitas Biasa: Boleh diedit oleh creator / group admin / super admin
+      const isCreator = community.creator_id?.toString() === userId;
+      const isGroupAdmin = community.admins.map(a => a.toString()).includes(userId);
+      if (!isCreator && !isGroupAdmin && !isAdminUser) {
+        return reply.status(403).send({ 
+          success: false, 
+          message: 'Akses ditolak. Anda tidak memiliki izin untuk mengedit komunitas ini.' 
+        });
+      }
+    }
+
+    // Parsing Multipart Form-Data
+    let name = community.name;
+    let description = community.description;
+    let avatarUrl = community.avatar_url;
+    let avatarKey = '';
+    let newAvatarUploaded = false;
+
+    const parts = request.parts();
+    for await (const part of parts) {
+      if (part.type === 'field') {
+        if (part.fieldname === 'name') name = part.value;
+        if (part.fieldname === 'description') description = part.value;
+      } else if (part.type === 'file' && part.fieldname === 'avatar') {
+        const chunks = [];
+        for await (const chunk of part.file) chunks.push(chunk);
+        const buffer = Buffer.concat(chunks);
+
+        // Enkripsi Avatar sebelum upload ke R2
+        const encryptedBuffer = encryptBuffer(buffer);
+        const upload = await uploadFile(encryptedBuffer, part.mimetype, 'community');
+
+        const baseUrl = process.env.APP_URL || `http://${request.hostname}`;
+        avatarUrl = `${baseUrl}/api/v1/chat/media/community/${upload.key.split('/').pop()}`;
+        avatarKey = upload.key;
+        newAvatarUploaded = true;
+      }
+    }
+
+    // Hapus avatar lama di R2 jika ada file baru di-upload
+    if (newAvatarUploaded && community.avatar_url) {
+      const urlParts = community.avatar_url.split('/api/v1/chat/media/community/');
+      if (urlParts[1]) {
+        const oldAvatarKey = `massage/community/${urlParts[1]}`;
+        await deleteFile(oldAvatarKey).catch(err => console.error('[R2] Gagal hapus avatar lama:', err));
+      }
+    }
+
+    // Update DB
+    community.name = name;
+    community.description = description;
+    community.avatar_url = avatarUrl;
+    await community.save();
+
+    return reply.send({
+      success: true,
+      message: 'Komunitas berhasil diperbarui.',
+      data: {
+        _id: community._id,
+        name: community.name,
+        description: community.description,
+        avatar_url: community.avatar_url
+      }
+    });
+
+  } catch (error) {
+    request.log.error(error);
+    return reply.status(500).send({ success: false, message: 'Gagal mengedit komunitas.' });
+  }
+}
+

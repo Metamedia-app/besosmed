@@ -9,7 +9,9 @@ import {
   kickFromCommunity,
   deleteCommunity,
   setCommunityTypingStatus,
-  markCommunityAsRead
+  markCommunityAsRead,
+  leaveCommunity,
+  editCommunity
 } from '../../controllers/chat/communityChatController.js';
 
 async function communityChatRoutes(fastify) {
@@ -230,6 +232,52 @@ async function communityChatRoutes(fastify) {
       security: [{ bearerAuth: [] }]
     },
     handler: markCommunityAsRead
+  });
+
+  // 10. Leave Community
+  fastify.post('/communities/:communityId/leave', {
+    ...auth,
+    schema: {
+      tags: ['Chat Community'],
+      summary: 'Leave Community (Keluar dari Komunitas)',
+      description: 'Keluar dari komunitas tertentu. Tidak diizinkan untuk komunitas Ikatan Alumni.',
+      params: {
+        type: 'object',
+        properties: {
+          communityId: { type: 'string', description: 'ID Komunitas' }
+        }
+      },
+      security: [{ bearerAuth: [] }]
+    },
+    handler: leaveCommunity
+  });
+
+  // 11. Edit Community (Ubah nama, deskripsi, avatar)
+  fastify.patch('/communities/:communityId', {
+    ...auth,
+    validatorCompiler: () => () => true, // multipart handling
+    schema: {
+      tags: ['Chat Community'],
+      summary: 'Edit Community (Ubah Profil Komunitas)',
+      description: 'Mengubah nama, deskripsi, dan avatar komunitas. Ikatan Alumni hanya bisa diedit oleh Super Admin.',
+      consumes: ['multipart/form-data'],
+      params: {
+        type: 'object',
+        properties: {
+          communityId: { type: 'string', description: 'ID Komunitas' }
+        }
+      },
+      body: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Nama Baru Komunitas' },
+          description: { type: 'string', description: 'Deskripsi Baru Komunitas' },
+          avatar: { type: 'string', format: 'binary', description: 'Avatar Baru Komunitas (foto)' }
+        }
+      },
+      security: [{ bearerAuth: [] }]
+    },
+    handler: editCommunity
   });
 }
 

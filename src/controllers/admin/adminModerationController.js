@@ -1,6 +1,7 @@
 import User from '../../models/User.js';
 import Post from '../../models/Post.js';
 import Notification from '../../models/Notification.js';
+import Conversation from '../../models/Conversation.js';
 import * as wsService from '../../services/wsService.js';
 
 /**
@@ -171,3 +172,30 @@ export async function unbanUser(request, reply) {
     return reply.status(500).send({ success: false, message: 'Gagal unban user.' });
   }
 }
+
+/**
+ * Mendapatkan daftar komunitas Alumni khusus untuk Admin
+ */
+export async function getAlumniCommunitiesAdmin(request, reply) {
+  try {
+    const communities = await Conversation.find({
+      type: 'community',
+      is_default_alumni: true
+    })
+    .populate('creator_id', 'nama nim avatar_url')
+    .sort({ createdAt: -1 })
+    .lean();
+
+    return reply.send({
+      success: true,
+      data: communities
+    });
+  } catch (error) {
+    request.log.error(error);
+    return reply.status(500).send({
+      success: false,
+      message: 'Gagal mengambil daftar komunitas alumni.'
+    });
+  }
+}
+
