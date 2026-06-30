@@ -364,26 +364,35 @@ if (containsToxicWords(body)) {
 export async function getGroupMessages(request, reply) {
   const userId = request.user.id;
   const { conversationId } = request.params;
-  const { limit = 30, skip = 0 } = request.query;
+  const { before, limit = 30 } = request.query;
 
   try {
     const conv = await Conversation.findOne({ _id: conversationId, participants: userId });
     if (!conv) return reply.status(403).send({ success: false, message: 'Akses ditolak.' });
 
-    const messages = await Message.find({
+    // Cursor-based pagination
+    const parsedLimit = Math.min(parseInt(limit) || 30, 100);
+    const query = {
       conversation_id: conversationId,
-      deleted_by: { $ne: userId }
-    })
-    .sort({ createdAt: -1 })
-    .skip(parseInt(skip))
-    .limit(parseInt(limit))
-    .populate('sender_id', 'nama nim avatar_url')
-    .lean();
+      deleted_by: { $ne: userId },
+    };
+    if (before) {
+      query._id = { $lt: before };
+    }
+
+    const rawMessages = await Message.find(query)
+      .sort({ _id: -1 })
+      .limit(parsedLimit + 1)
+      .populate('sender_id', 'nama nim avatar_url')
+      .lean();
+
+    const has_more = rawMessages.length > parsedLimit;
+    const messages = rawMessages.slice(0, parsedLimit).reverse();
 
     const formatted = messages.map(m => ({
       ...m,
       body: m.is_deleted_for_everyone ? 'Pesan ini telah ditarik' : decryptMessage(m.body),
-    })).reverse();
+    }));
 
     // Reset unread count
     await Conversation.findByIdAndUpdate(conversationId, {
@@ -397,7 +406,7 @@ export async function getGroupMessages(request, reply) {
     const unreadData = await getUnreadSummaryData(userId);
     emitUnreadUpdate(userId, unreadData);
 
-    // --- FITUR BARU: Update read_by & Ceklis Biru (Read by Everyone) ---
+    // --- Update read_by & Ceklis Biru (Read by Everyone) ---
     const messagesToUpdate = await Message.find({
       conversation_id: conversationId,
       sender_id: { $ne: userId },
@@ -417,7 +426,7 @@ export async function getGroupMessages(request, reply) {
       }
     }
 
-    return reply.send({ success: true, data: formatted });
+    return reply.send({ success: true, data: formatted, meta: { has_more } });
   } catch (error) {
     return reply.status(500).send({ success: false, message: 'Gagal memuat pesan grup.' });
   }

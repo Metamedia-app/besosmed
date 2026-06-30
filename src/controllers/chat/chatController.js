@@ -80,7 +80,7 @@ export async function getConversations(request, reply) {
 export async function getMessages(request, reply) {
   const userId = request.user.id;
   const { conversationId } = request.params;
-  const { limit = 30, skip = 0 } = request.query;
+  const { before, limit = 30 } = request.query;
 
   try {
     // 1. Pastikan user adalah peserta percakapan ini dan bertipe INBOX
@@ -94,20 +94,30 @@ export async function getMessages(request, reply) {
       return reply.status(403).send({ success: false, message: 'Akses ditolak.' });
     }
 
-    // 2. Ambil pesan & Dekripsi
-    const messages = await Message.find({
+    // 2. Ambil pesan & Dekripsi (Cursor-based pagination)
+    const parsedLimit = Math.min(parseInt(limit) || 30, 100);
+    const query = {
       conversation_id: conversationId,
-      deleted_by: { $ne: userId }, // Jangan ambil pesan yang sudah dihapus "for me"
-    })
-      .sort({ createdAt: -1 })
-      .skip(parseInt(skip))
-      .limit(parseInt(limit))
+      deleted_by: { $ne: userId },
+    };
+    // Jika ada cursor 'before', ambil pesan yang lebih LAMA dari ID tersebut
+    if (before) {
+      query._id = { $lt: before };
+    }
+
+    // Ambil limit+1 untuk mendeteksi apakah masih ada pesan lebih lama (has_more)
+    const rawMessages = await Message.find(query)
+      .sort({ _id: -1 })
+      .limit(parsedLimit + 1)
       .lean();
+
+    const has_more = rawMessages.length > parsedLimit;
+    const messages = rawMessages.slice(0, parsedLimit).reverse();
 
     const formatted = messages.map(m => ({
       ...m,
       body: m.is_deleted_for_everyone ? 'Pesan ini telah ditarik' : decryptMessage(m.body),
-    })).reverse();
+    }));
 
     // 3. Reset unread count untuk user ini
     await Conversation.findByIdAndUpdate(conversationId, {
@@ -135,7 +145,7 @@ export async function getMessages(request, reply) {
       }
     }
 
-    return reply.send({ success: true, data: formatted });
+    return reply.send({ success: true, data: formatted, meta: { has_more } });
   } catch (error) {
     return reply.status(500).send({ success: false, message: 'Gagal mengambil riwayat pesan.' });
   }

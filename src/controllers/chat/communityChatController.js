@@ -207,7 +207,7 @@ export async function getCommunityDetail(request, reply) {
 export async function getCommunityMessages(request, reply) {
   const userId = request.user.id;
   const { communityId } = request.params;
-  const { limit = 30, skip = 0 } = request.query;
+  const { before, limit = 30 } = request.query;
 
   try {
     // Pastikan user adalah member komunitas
@@ -218,21 +218,30 @@ export async function getCommunityMessages(request, reply) {
     });
     if (!conv) return reply.status(403).send({ success: false, message: 'Akses ditolak. Anda bukan anggota komunitas ini.' });
 
-    const messages = await Message.find({
+    // Cursor-based pagination
+    const parsedLimit = Math.min(parseInt(limit) || 30, 100);
+    const query = {
       conversation_id: communityId,
-      deleted_by: { $ne: userId } // Jangan tampilkan pesan yang sudah dihapus "for me"
-    })
-    .sort({ createdAt: -1 })
-    .skip(parseInt(skip))
-    .limit(parseInt(limit))
-    .populate('sender_id', 'nama nim avatar_url')
-    .lean();
+      deleted_by: { $ne: userId },
+    };
+    if (before) {
+      query._id = { $lt: before };
+    }
+
+    const rawMessages = await Message.find(query)
+      .sort({ _id: -1 })
+      .limit(parsedLimit + 1)
+      .populate('sender_id', 'nama nim avatar_url')
+      .lean();
+
+    const has_more = rawMessages.length > parsedLimit;
+    const messages = rawMessages.slice(0, parsedLimit).reverse();
 
     // Dekripsi semua pesan
     const formatted = messages.map(m => ({
       ...m,
       body: m.is_deleted_for_everyone ? 'Pesan ini telah ditarik' : decryptMessage(m.body),
-    })).reverse(); // Balik urutan: lama ke baru
+    }));
 
     // Reset unread count
     await Conversation.findByIdAndUpdate(communityId, {
@@ -246,7 +255,7 @@ export async function getCommunityMessages(request, reply) {
     const unreadData = await getUnreadSummaryData(userId);
     emitUnreadUpdate(userId, unreadData);
 
-    // --- FITUR BARU: Update read_by & Ceklis Biru (Read by Everyone) ---
+    // --- Update read_by & Ceklis Biru (Read by Everyone) ---
     const convForRead = await Conversation.findById(communityId);
     if (convForRead) {
       const messagesToUpdate = await Message.find({
@@ -269,11 +278,7 @@ export async function getCommunityMessages(request, reply) {
     return reply.send({ 
       success: true, 
       data: formatted,
-      meta: {
-        total: formatted.length,
-        limit: parseInt(limit),
-        skip: parseInt(skip)
-      }
+      meta: { has_more }
     });
   } catch (error) {
     request.log.error(error);
