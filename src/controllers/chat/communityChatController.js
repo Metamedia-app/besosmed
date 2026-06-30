@@ -41,13 +41,10 @@ export async function createCommunity(request, reply) {
         const chunks = [];
         for await (const chunk of part.file) chunks.push(chunk);
         const buffer = Buffer.concat(chunks);
-        
-        // Enkripsi Avatar sebelum upload (Optional but following user request for full encryption)
-        const encryptedBuffer = encryptBuffer(buffer);
-        const upload = await uploadFile(encryptedBuffer, part.mimetype, 'community');
-        
-        const baseUrl = process.env.APP_URL || `http://${request.hostname}`;
-        avatarUrl = `${baseUrl}/api/v1/chat/media/community/${upload.key.split('/').pop()}`;
+
+        // Avatar TIDAK dienkripsi - upload langsung ke R2 seperti avatar user biasa
+        const upload = await uploadFile(buffer, part.mimetype, 'avatar');
+        avatarUrl = upload.url; // Gunakan URL publik R2 langsung
         avatarKey = upload.key;
       }
     }
@@ -730,12 +727,9 @@ export async function editCommunity(request, reply) {
         for await (const chunk of part.file) chunks.push(chunk);
         const buffer = Buffer.concat(chunks);
 
-        // Enkripsi Avatar sebelum upload ke R2
-        const encryptedBuffer = encryptBuffer(buffer);
-        const upload = await uploadFile(encryptedBuffer, part.mimetype, 'community');
-
-        const baseUrl = process.env.APP_URL || `http://${request.hostname}`;
-        avatarUrl = `${baseUrl}/api/v1/chat/media/community/${upload.key.split('/').pop()}`;
+        // Avatar TIDAK dienkripsi - upload langsung ke R2 seperti avatar user biasa
+        const upload = await uploadFile(buffer, part.mimetype, 'avatar');
+        avatarUrl = upload.url; // Gunakan URL publik R2 langsung
         avatarKey = upload.key;
         newAvatarUploaded = true;
       }
@@ -743,10 +737,14 @@ export async function editCommunity(request, reply) {
 
     // Hapus avatar lama di R2 jika ada file baru di-upload
     if (newAvatarUploaded && community.avatar_url) {
-      const urlParts = community.avatar_url.split('/api/v1/chat/media/community/');
-      if (urlParts[1]) {
-        const oldAvatarKey = `massage/community/${urlParts[1]}`;
+      // Ambil key dari URL R2 publik (format: https://pub-xxx.r2.dev/avatars/uuid.jpg)
+      try {
+        const oldUrl = new URL(community.avatar_url);
+        const oldAvatarKey = oldUrl.pathname.replace(/^\//, ''); // Hapus leading slash
         await deleteFile(oldAvatarKey).catch(err => console.error('[R2] Gagal hapus avatar lama:', err));
+      } catch (e) {
+        // Jika URL lama adalah format proxy lama, skip saja
+        console.warn('[R2] Tidak dapat parse URL avatar lama, skip delete:', community.avatar_url);
       }
     }
 
