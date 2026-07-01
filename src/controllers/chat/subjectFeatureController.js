@@ -55,6 +55,14 @@ export async function uploadSyllabus(request, reply) {
       return reply.status(400).send({ success: false, message: 'ID Grup tidak valid.' });
     }
 
+    // --- KEAMANAN / IDOR: Pastikan Dosen/Admin adalah anggota/peserta grup matkul ini ---
+    if (request.user.role !== 'admin') {
+      const isMember = await Conversation.findOne({ _id: conversationId, participants: lecturerId, type: 'group' });
+      if (!isMember) {
+        return reply.status(403).send({ success: false, message: 'Akses ditolak. Anda bukan pengajar di grup matkul ini.' });
+      }
+    }
+
     // Simpan ke DB
     const syllabus = await Syllabus.findOneAndUpdate(
       { conversation_id: conversationId, meeting_number: meetingNumber },
@@ -128,6 +136,24 @@ export async function createAssignment(request, reply) {
           size: buffer.length,
           key: upload.key
         });
+      }
+    }
+
+    // Validasi dasar
+    if (!conversationId || !title) {
+      return reply.status(400).send({ success: false, message: 'Data tidak lengkap.' });
+    }
+
+    // Pastikan ID valid
+    if (!/^[0-9a-fA-F]{24}$/.test(conversationId)) {
+      return reply.status(400).send({ success: false, message: 'ID Grup tidak valid.' });
+    }
+
+    // --- KEAMANAN / IDOR: Pastikan Dosen/Admin adalah anggota/peserta grup matkul ini ---
+    if (request.user.role !== 'admin') {
+      const isMember = await Conversation.findOne({ _id: conversationId, participants: lecturerId, type: 'group' });
+      if (!isMember) {
+        return reply.status(403).send({ success: false, message: 'Akses ditolak. Anda bukan pengajar di grup matkul ini.' });
       }
     }
 
@@ -215,10 +241,19 @@ export async function getAssignments(request, reply) {
  * 5. Mute/Unmute Grup (Dosen/Admin Only)
  */
 export async function toggleMuteGroup(request, reply) {
+  const lecturerId = request.user.id;
   const { conversationId } = request.params;
   const { isMuted } = request.body;
 
   try {
+    // --- KEAMANAN / IDOR: Pastikan Dosen/Admin adalah anggota/peserta grup matkul ini ---
+    if (request.user.role !== 'admin') {
+      const isMember = await Conversation.findOne({ _id: conversationId, participants: lecturerId, type: 'group' });
+      if (!isMember) {
+        return reply.status(403).send({ success: false, message: 'Akses ditolak. Anda bukan pengajar di grup matkul ini.' });
+      }
+    }
+
     await Conversation.findByIdAndUpdate(conversationId, { is_muted: isMuted });
 
     // KIRIM REAL-TIME KE SEMUA PESERTA
