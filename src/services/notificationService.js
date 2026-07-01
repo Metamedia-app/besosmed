@@ -58,9 +58,14 @@ export async function sendPushNotification(tokens, payload) {
     console.log(`[FCM] 📤 Mengirim notifikasi: "${payload.title}"`);
     console.log(`[FCM] ✅ Berhasil: ${response.successCount} | ❌ Gagal: ${response.failureCount}`);
     
-    // Opsional: Bersihkan token yang sudah tidak valid (expired)
+    // Opsional: Bersihkan token yang sudah tidak valid (expired) atau log detail error
     if (response.failureCount > 0) {
-      console.warn('[FCM] Beberapa token mungkin sudah kadaluarsa atau tidak valid.');
+      console.warn('[FCM] Terdapat pengiriman yang gagal. Detail error:');
+      response.responses.forEach((resp, idx) => {
+        if (!resp.success) {
+          console.error(`      -> Token [${idx}]: ${resp.error.code} - ${resp.error.message}`);
+        }
+      });
     }
     
     return response;
