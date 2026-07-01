@@ -6,5 +6,6 @@ logs/
 .DS_Store
 coverage/
 
-# Firebase Admin Key
-# firebase-auth.json dipush (Repo Privat)
+# Firebase Admin Key (JANGAN PERNAH DI-PUSH KE GITHUB!)
+firebase-auth.json
+besosmed-5054b-*.json
