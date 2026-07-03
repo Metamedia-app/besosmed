@@ -11,6 +11,7 @@ import {
   markInboxAsRead
 } from '../../controllers/chat/chatController.js';
 import { getUnreadSummary } from '../../controllers/chat/unreadController.js';
+import { searchConversations } from '../../controllers/chat/searchChatController.js';
 
 export default async function chatRoutes(fastify) {
   // Semua rute chat memerlukan autentikasi
@@ -25,6 +26,21 @@ export default async function chatRoutes(fastify) {
         security: [{ bearerAuth: [] }]
       }
     }, getUnreadSummary);
+
+    // Unified Search Chat
+    protectedRoutes.get('/search', {
+      schema: {
+        tags: ['Chat Search'],
+        summary: 'Pencarian Global Chat (Inbox, Grup Matkul, Komunitas)',
+        querystring: {
+          type: 'object',
+          properties: {
+            q: { type: 'string', description: 'Keyword pencarian (nama user, matkul, atau komunitas)' }
+          }
+        },
+        security: [{ bearerAuth: [] }]
+      }
+    }, searchConversations);
 
     // List Inbox
     protectedRoutes.get('/conversations', {
