@@ -36,15 +36,27 @@ async function swaggerPlugin(fastify) {
     },
   });
 
-  await fastify.register(swaggerUi, {
-    routePrefix: '/docs',
-    uiConfig: {
-      docExpansion: 'list',
-      deepLinking: true,
-    },
-    staticCSP: true,
-    transformStaticCSP: (header) => header,
-  });
+  if (process.env.NODE_ENV === 'production') {
+    // Keamanan Produksi: Halaman docs diblokir dengan pesan mengecoh
+    fastify.get('/docs', async (request, reply) => {
+      return reply.code(403).send({
+        status: 'error',
+        message: 'Forbidden: API Documentation is disabled in production environment.',
+        code: 'DOCS_DISABLED'
+      });
+    });
+  } else {
+    // Mode Development: Swagger menyala terang benderang untuk sarana testing
+    await fastify.register(swaggerUi, {
+      routePrefix: '/docs',
+      uiConfig: {
+        docExpansion: 'list',
+        deepLinking: true,
+      },
+      staticCSP: true,
+      transformStaticCSP: (header) => header,
+    });
+  }
 }
 
 export default fp(swaggerPlugin, {
