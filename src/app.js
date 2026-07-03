@@ -71,7 +71,7 @@ export async function buildApp(opts = {}) {
   await app.register(systemRoutes, { prefix: '/api/v1/system' });
   await app.register(adminDashboardRoutes, { prefix: '/api/v1/admin' });
 
-  // ── Global Error Handler test ───────────────────────────────
+  // ── Global Error Handler test1 ───────────────────────────────
   app.setErrorHandler((error, request, reply) => {
     app.log.error(error);
 
