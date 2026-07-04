@@ -28,9 +28,9 @@ export async function sharePostPreview(request, reply) {
       return reply.redirect(APP_URL);
     }
 
-    const authorName = post.author_id?.nama || 'Pengguna BeSosmed';
+    const authorName = post.author_id?.nama || 'Pengguna MetaU';
     const postBody = post.caption || post.body || '';
-    const description = postBody.length > 100 ? postBody.substring(0, 100) + '...' : postBody || 'Lihat postingan ini di BeSosmed!';
+    const description = postBody.length > 100 ? postBody.substring(0, 100) + '...' : postBody || 'Lihat postingan ini di MetaU!';
     const ogImage = post.media?.[0]?.url || post.author_id?.avatar_url || DEFAULT_OG_IMAGE;
     const shareUrl = `${APP_URL}/post/${postId}`;
     const deepLinkUrl = `${APP_SCHEME}://post/${postId}`;
@@ -47,7 +47,7 @@ export async function sharePostPreview(request, reply) {
   <meta property="og:image" content="${ogImage}" />
   <meta property="og:url" content="${shareUrl}" />
   <meta property="og:type" content="article" />
-  <meta property="og:site_name" content="BeSosmed" />
+  <meta property="og:site_name" content="MetaU" />
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image" />
@@ -55,7 +55,7 @@ export async function sharePostPreview(request, reply) {
   <meta name="twitter:description" content="${description}" />
   <meta name="twitter:image" content="${ogImage}" />
 
-  <title>Postingan dari ${authorName} — BeSosmed</title>
+  <title>Postingan dari ${authorName} — MetaU</title>
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -68,7 +68,7 @@ export async function sharePostPreview(request, reply) {
 </head>
 <body>
   <div class="card">
-    <div class="logo">🎓 BeSosmed</div>
+    <div class="logo">🎓 MetaU</div>
     <p class="msg">Postingan dari <strong>${authorName}</strong> sedang dibuka di aplikasi...</p>
     <a href="${PLAY_STORE_URL}" class="btn">Download Aplikasi</a>
   </div>
