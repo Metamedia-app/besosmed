@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.anonymous.Fe_Sosmed_metamedia",
+      "sha256_cert_fingerprints": [
+        "34:3A:35:F7:F2:BD:C3:E8:B0:7E:D1:67:24:32:A9:AE:55:43:27:D8:E1:9F:FB:C8:51:B1:C2:B4:1E:DD:9C:82"
+      ]
+    }
+  }
+]

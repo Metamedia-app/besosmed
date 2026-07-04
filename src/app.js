@@ -29,6 +29,12 @@ import subjectFeatureRoutes from './routes/chat/subjectFeatureRoutes.js';
 import systemRoutes from './routes/system/index.js';
 import adminDashboardRoutes from './routes/admin/adminDashboardRoutes.js';
 import { startReminderService } from './services/reminderService.js';
+import { sharePostPreview } from './controllers/posts/shareController.js';
+import fastifyStatic from '@fastify/static';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export async function buildApp(opts = {}) {
   const app = Fastify({
@@ -52,6 +58,20 @@ export async function buildApp(opts = {}) {
   await app.register(socketioPlugin);
   await app.register(multipartPlugin);
   await app.register(redisPlugin);
+
+  // ── Static Files (.well-known untuk Android Deep Link) ──
+  await app.register(fastifyStatic, {
+    root: join(__dirname, '..', 'public'),
+    prefix: '/',
+    decorateReply: false
+  });
+
+  // ── Public Routes (Tanpa Auth — untuk WhatsApp/Telegram Preview) ──
+  app.get('/post/:postId', {
+    schema: {
+      hide: true // Sembunyikan dari Swagger
+    }
+  }, sharePostPreview);
 
   // ── Routes ─────────────────────────────────────────────
   await app.register(healthRoutes);
