@@ -3,7 +3,7 @@ import User from '../../models/User.js';
 
 const APP_URL = process.env.APP_URL || 'http://localhost:3000';
 const APP_SCHEME = 'besosmed'; // Deep link scheme milik aplikasi FE
-const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.anonymous.Fe_Sosmed_metamedia';
+const PLAY_STORE_URL = 'https://metamedia-download.vercel.app/';
 const DEFAULT_OG_IMAGE = `${APP_URL}/logo.png`; // Fallback jika postingan tidak punya foto
 
 /**
