@@ -16,10 +16,11 @@ export async function getFeed(request, reply) {
 
   // Dukung parameter 'page' dari Frontend
   const page = parseInt(request.query.page) || 1;
-  const before = request.query.before; // fallback cursor lama
+  const before = request.query.before || ''; // fallback cursor lama
 
   // --- REDIS CACHE UNTUK FULL RESPONSE (OPSIONAL) ---
-  const cacheKey = `feed_html:${userId}:${limit}:${page}`;
+  // Pastikan parameter before ikut jadi key agar tidak tabrakan dengan cache page 1
+  const cacheKey = `feed_html:${userId}:${limit}:${page}:${before}`;
   if (request.server.redis) {
     try {
       const cached = await request.server.redis.get(cacheKey);

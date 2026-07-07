@@ -45,7 +45,7 @@ export async function deletePost(request, reply) {
   // --- CACHE BUSTING: Hancurkan cache feed agar fresh data langsung muncul ---
   if (request.server.redis) {
     try {
-      const keys = await request.server.redis.keys('feed:*');
+      const keys = await request.server.redis.keys('feed_html:*');
       if (keys.length > 0) await request.server.redis.del(...keys);
     } catch (err) {}
   }
