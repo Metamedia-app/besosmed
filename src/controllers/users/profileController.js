@@ -2,6 +2,7 @@ import User from '../../models/User.js';
 import Follow from '../../models/Follow.js';
 import bcrypt from 'bcrypt';
 import { uploadFile, deleteFile } from '../../services/r2Service.js';
+import mongoose from 'mongoose';
 
 /**
  * GET /me
@@ -230,8 +231,11 @@ export async function getUserProfile(request, reply) {
   const meId = request.user.id;
   const { id: targetId } = request.params;
 
-  // 1. Ambil data user target
-  const targetUser = await User.findById(targetId)
+  // 1. Ambil data user target (bisa via _id atau via NIM)
+  const isObjectId = mongoose.isValidObjectId(targetId);
+  const targetUser = await User.findOne(
+    isObjectId ? { _id: targetId } : { nim: targetId }
+  )
     .select('nim nama program_studi role status_mahasiswa jenis_kelamin bio avatar_url followers_count following_count tempat_lahir tanggal_lahir agama createdAt')
     .lean();
 
@@ -239,10 +243,13 @@ export async function getUserProfile(request, reply) {
     return reply.status(404).send({ success: false, message: 'User tidak ditemukan.' });
   }
 
+  // Gunakan ID asli MongoDB dari targetUser untuk cek hubungan
+  const targetObjectId = targetUser._id;
+
   // 2. Cek hubungan timbal balik
   const [following, follower] = await Promise.all([
-    Follow.findOne({ follower_id: meId, following_id: targetId }).lean(),
-    Follow.findOne({ follower_id: targetId, following_id: meId }).lean(),
+    Follow.findOne({ follower_id: meId, following_id: targetObjectId }).lean(),
+    Follow.findOne({ follower_id: targetObjectId, following_id: meId }).lean(),
   ]);
 
   return reply.send({

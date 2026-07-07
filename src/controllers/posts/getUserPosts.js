@@ -1,5 +1,7 @@
 import Post from '../../models/Post.js';
 import Like from '../../models/Like.js';
+import User from '../../models/User.js';
+import mongoose from 'mongoose';
 
 /**
  * GET /api/v1/users/:id/posts
@@ -12,6 +14,18 @@ export async function getUserPosts(request, reply) {
   const before = request.query.before;
 
   try {
+    const isObjectId = mongoose.isValidObjectId(targetId);
+    let targetUserObjectId = targetId;
+
+    if (!isObjectId) {
+      // Jika parameter id adalah NIM, cari user-nya dulu untuk mengambil ObjectId aslinya
+      const userObj = await User.findOne({ nim: targetId }).select('_id').lean();
+      if (!userObj) {
+        return reply.status(404).send({ success: false, message: 'User tidak ditemukan.' });
+      }
+      targetUserObjectId = userObj._id;
+    }
+
     const baseConditions = {
       is_deleted: false,
       type: 'original',
@@ -26,8 +40,8 @@ export async function getUserPosts(request, reply) {
     const filter = {
       ...baseConditions,
       $or: [
-        { author_id: targetId },
-        { tags_id: targetId }
+        { author_id: targetUserObjectId },
+        { tags_id: targetUserObjectId }
       ],
     };
 
