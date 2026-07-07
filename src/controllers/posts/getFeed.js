@@ -118,8 +118,14 @@ export async function getFeed(request, reply) {
         try {
           // Session berlaku 10 menit per login scroll
           await request.server.redis.set(sessionKey, JSON.stringify(sessionIds), 'EX', 600);
+
+          // Hapus cache HTML halaman feed lama milik user ini agar tidak tabrakan/stale setelah reload
+          const cachedKeys = await request.server.redis.keys(`feed_html:${userId}:*`);
+          if (cachedKeys.length > 0) {
+            await request.server.redis.del(...cachedKeys);
+          }
         } catch (e) {
-          request.log.warn(`[Feed] Redis SET Session Error: ${e.message}`);
+          request.log.warn(`[Feed] Redis SET Session / Cache Invalidation Error: ${e.message}`);
         }
       }
 
