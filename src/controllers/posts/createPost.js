@@ -1,8 +1,9 @@
 import { uploadFile } from '../../services/r2Service.js';
-import { emitNewPost } from '../../services/wsService.js';
+import { emitNewPost, emitNotification } from '../../services/wsService.js';
 import Post from '../../models/Post.js';
 import User from '../../models/User.js';
-import { triggerPushNotification } from '../../services/notificationService.js';
+import Notification from '../../models/Notification.js';
+import { countTotalUnreadItems, triggerPushNotification } from '../../services/notificationService.js';
 
 /**
  * Mengekstrak NIM dari caption yang berisi pola mention.
@@ -148,10 +149,44 @@ export async function createPost(request, reply) {
   // ── Kirim Notifikasi ke Pengguna yang Di-Tag ─────────────────────────────
   if (taggedUserIds.length > 0) {
     const authorName = request.user.nama || 'Seseorang';
+    const message = `${authorName} menandai Anda dalam sebuah postingan`;
+
     for (const uid of taggedUserIds) {
+      // 1. Simpan ke database notifikasi in-app
+      const notif = await Notification.create({
+        recipient_id: uid,
+        sender_id: authorId,
+        type: 'mention',
+        post_id: post._id,
+        grouped_items: [{
+          user_id: authorId,
+          nama: authorName,
+          avatar_url: request.user.avatar_url,
+          reference_id: post._id,
+          at: new Date()
+        }]
+      });
+
+      // 2. Hitung jumlah badge notifikasi (bisa realtime)
+      const unreadCount = await countTotalUnreadItems(uid);
+
+      // 3. Pancarkan ke Socket.io (biar bel di HP/Web getar)
+      emitNotification(uid, {
+        id: notif._id,
+        type: 'mention',
+        sender_id: authorId,
+        post_id: post._id.toString(),
+        message: message,
+        grouped_items: notif.grouped_items,
+        unread_count: unreadCount,
+        created_at: notif.createdAt,
+        updatedAt: notif.updatedAt,
+      });
+
+      // 4. Kirim FCM Push ke luar layar (status bar HP)
       triggerPushNotification(uid, {
         title: 'MetaU',
-        body: `${authorName} menandai Anda dalam sebuah postingan`,
+        body: message,
         data: {
           type: 'mention',
           post_id: post._id.toString(),
