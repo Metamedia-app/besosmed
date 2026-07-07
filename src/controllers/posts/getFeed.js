@@ -41,7 +41,7 @@ export async function getFeed(request, reply) {
 
   // 2. Filter criteria — Discovery TANPA syarat likes (sudah dihapus)
   const filter = {
-    is_deleted: false,
+    is_deleted: { $ne: true },  // Lebih aman dari "is_deleted: false" saat dikombinasikan $or
     $or: [
       { author_id: { $in: followingIds } }, // Teman
       { author_id: userId },                // Diri Sendiri
