@@ -60,6 +60,9 @@ export async function getNotifications(request, reply) {
         case 'toxic':
           message = 'Komentar Anda melanggar pedoman komunitas.';
           break;
+        case 'mention':
+          message = `${senderNama} menandai Anda dalam sebuah postingan.`;
+          break;
         default:
           message = 'Ada interaksi baru di akun Anda.';
       }
