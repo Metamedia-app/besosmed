@@ -4,19 +4,21 @@ import Follow from '../../models/Follow.js';
 
 /**
  * Get feed — Algoritma campuran (Following + Discovery)
- * Menampilkan postingan dari orang yang diikuti, diri sendiri, 
+ * Menampilkan postingan dari orang yang diikuti, diri sendiri,
  * dan sesekali postingan populer dari orang asing agar Home tidak sepi.
+ *
+ * FIX: Infinite scroll tanpa batas — tidak ada limit pool 100,
+ *      has_more akurat, tidak ada duplikat.
  */
 export async function getFeed(request, reply) {
   const userId = request.user.id;
   const limit = Math.min(parseInt(request.query.limit) || 10, 30);
-  
+
   // Dukung parameter 'page' dari Frontend
   const page = parseInt(request.query.page) || 1;
-  const before = request.query.before; // masih didukung jika fallback
+  const before = request.query.before; // fallback cursor lama
 
   // --- REDIS CACHE UNTUK FULL RESPONSE (OPSIONAL) ---
-  // Hanya bypass query jika caching halaman ini persis sama (untuk throttle)
   const cacheKey = `feed_html:${userId}:${limit}:${page}`;
   if (request.server.redis) {
     try {
@@ -25,56 +27,48 @@ export async function getFeed(request, reply) {
         return reply.send(JSON.parse(cached));
       }
     } catch (err) {
-      request.log.warn(`Redis GET Error: ${err.message}`);
+      request.log.warn(`[Feed] Redis GET Error: ${err.message}`);
     }
   }
   // -------------------------------------------------------------------
+
+  // Kunci session antrean feed di Redis (per-user, reset tiap page=1)
+  const sessionKey = `feed_session:${userId}`;
 
   // 1. Ambil daftar user yang diikuti (following)
   const follows = await Follow.find({ follower_id: userId }).select('following_id').lean();
   const followingIds = follows.map(f => f.following_id);
 
-  // 2. Tentukan kriteria filter
-  // - Postingan teman & diri sendiri
-  // - Postingan global yang "populer" (Discovery) agar Home tidak kosong
+  // 2. Filter criteria — Discovery TANPA syarat likes (sudah dihapus)
   const filter = {
     is_deleted: false,
     $or: [
       { author_id: { $in: followingIds } }, // Teman
       { author_id: userId },                // Diri Sendiri
-      { 
-        visibility: 'public',               // FYP: Harus disetting publik oleh usernya
-        likes_count: { $gte: 2 }            // Discovery: Postingan populer (min 2 likes)
-      }
+      { visibility: 'public' }              // Discovery: semua postingan publik
     ]
   };
 
-  // Jika user belum follow siapa pun, porsi discovery otomatis lebih besar
-  
-  // Jika user pakai cursor lama 'before', kita bisa fallback
+  // Fallback cursor lama 'before' (kompatibilitas mundur)
   if (before && !request.query.page) {
     filter.createdAt = { $lt: new Date(before) };
   }
 
-  // Kunci session antrean feed di Redis
-  const sessionKey = `feed_session:${userId}`;
   let posts = [];
   let totalSessionCount = 0;
 
+  // ── PAGINASI: Halaman 2, 3, dst ─────────────────────────────────────────
   if (page > 1 && request.server.redis && !before) {
-    // --- MODE ALUR PAGINASI (Halaman 2, 3, dst) ---
     try {
       const sessionData = await request.server.redis.get(sessionKey);
       if (sessionData) {
         const allIds = JSON.parse(sessionData);
         totalSessionCount = allIds.length;
-        
-        // Ambil potongan ID sesuai halaman
+
         const startIndex = (page - 1) * limit;
         const targetIds = allIds.slice(startIndex, startIndex + limit);
-        
+
         if (targetIds.length > 0) {
-          // Ambil dari DB berdasarkan ID
           posts = await Post.find({ _id: { $in: targetIds } })
             .populate('author_id', 'nim nama avatar_url program_studi')
             .populate({
@@ -83,67 +77,89 @@ export async function getFeed(request, reply) {
               populate: { path: 'author_id', select: 'nim nama avatar_url' },
             })
             .lean();
-            
-          // Karena query $in tidak menjamin urutan, kita urutkan ulang manual sesuai urutan dari array session Redis (hasil SAPWS)
+
+          // Kembalikan urutan sesuai session Redis (karena $in tidak menjamin urutan)
           posts.sort((a, b) => targetIds.indexOf(a._id.toString()) - targetIds.indexOf(b._id.toString()));
         }
       }
     } catch (err) {
-      request.log.warn(`Redis Session Error: ${err.message}`);
+      request.log.warn(`[Feed] Redis Session Error: ${err.message}`);
     }
   }
 
-  // Jika posts kita masih kosong (entah ini page 1 ATAU redis session expired)
-  if (posts.length === 0) {
-    // --- MODE GENERATE BARU (Halaman 1) ---
-    const poolLimit = before ? limit : 100;
-
-    posts = await Post.find(filter)
+  // ── HALAMAN 1: Generate Session Baru ────────────────────────────────────
+  if (posts.length === 0 && (page === 1 || !request.query.page || before)) {
+    // FIX: Hanya ambil field-field ringan (tidak ambil full data) untuk proses shuffle
+    // Ini yang mencegah server jebol memori saat ada ribuan postingan
+    const lightPosts = await Post.find(filter)
       .sort({ createdAt: -1 })
-      .limit(poolLimit)
-      .populate('author_id', 'nim nama avatar_url program_studi')
-      .populate({
-        path: 'original_post_id',
-        select: 'caption media author_id createdAt',
-        populate: { path: 'author_id', select: 'nim nama avatar_url' },
-      })
+      .select('_id likes_count comments_count reposts_count createdAt')
       .lean();
 
-    // --- ALGORITMA SAPWS + Weighted Random Shuffle (Efraimidis-Spirakis) ---
-    if ((page === 1 || !request.query.page) && !before && posts.length > 0) {
-      posts.forEach((p) => {
+    if (lightPosts.length > 0 && !before) {
+      // ── ALGORITMA SAPWS + Weighted Random Shuffle (Efraimidis-Spirakis) ──
+      lightPosts.forEach((p) => {
         const ageInMinutes = (Date.now() - new Date(p.createdAt).getTime()) / (1000 * 60);
         const recencyScore = Math.max(0, 100 - (ageInMinutes / 30));
         const rawEngagement = ((p.likes_count || 0) * 10) + ((p.comments_count || 0) * 5) + ((p.reposts_count || 0) * 8);
         const engagementScore = Math.log1p(rawEngagement) * 20;
         const weight = Math.max(0.1, recencyScore + engagementScore);
-        p.sapws_score = weight;
         p._sort_key = Math.random() ** (1 / weight);
       });
 
-      posts.sort((a, b) => b._sort_key - a._sort_key);
+      lightPosts.sort((a, b) => b._sort_key - a._sort_key);
 
-      // Simpan urutan ID ke Redis Session selama 10 menit untuk infinite scroll
-      const sessionIds = posts.map(p => p._id.toString());
+      // Simpan SELURUH array ID hasil kocokan ke Redis (ringan: cuma string ID)
+      const sessionIds = lightPosts.map(p => p._id.toString());
       totalSessionCount = sessionIds.length;
+
       if (request.server.redis) {
         try {
+          // Session berlaku 10 menit per login scroll
           await request.server.redis.set(sessionKey, JSON.stringify(sessionIds), 'EX', 600);
-        } catch(e) {}
+        } catch (e) {
+          request.log.warn(`[Feed] Redis SET Session Error: ${e.message}`);
+        }
       }
+
+      // Ambil FULL data hanya untuk `limit` pertama dari hasil kocokan
+      const firstPageIds = sessionIds.slice(0, limit);
+      if (firstPageIds.length > 0) {
+        posts = await Post.find({ _id: { $in: firstPageIds } })
+          .populate('author_id', 'nim nama avatar_url program_studi')
+          .populate({
+            path: 'original_post_id',
+            select: 'caption media author_id createdAt',
+            populate: { path: 'author_id', select: 'nim nama avatar_url' },
+          })
+          .lean();
+
+        // Paksa urutan sesuai sessionIds
+        posts.sort((a, b) => firstPageIds.indexOf(a._id.toString()) - firstPageIds.indexOf(b._id.toString()));
+      }
+    } else if (before) {
+      // Fallback cursor lama: ambil dengan limit biasa
+      posts = await Post.find(filter)
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .populate('author_id', 'nim nama avatar_url program_studi')
+        .populate({
+          path: 'original_post_id',
+          select: 'caption media author_id createdAt',
+          populate: { path: 'author_id', select: 'nim nama avatar_url' },
+        })
+        .lean();
+      totalSessionCount = posts.length; // fallback tidak pakai session
     }
-
-    // Potong sesuai limit untuk response
-    posts = posts.slice(0, limit);
   }
-  // --------------------------------------------------------------------------
+  // ──────────────────────────────────────────────────────────────────────────
 
-  // 4. Cek status like & repost untuk masing-masing post
+  // 3. Cek status like & repost untuk masing-masing post
   const postIds = posts.map((p) => p._id);
   const [userLikes, userReposts] = await Promise.all([
     Like.find({ user_id: userId, post_id: { $in: postIds } }).lean(),
-    Post.find({ 
-      author_id: userId, 
+    Post.find({
+      author_id: userId,
       original_post_id: { $in: postIds },
       type: 'repost',
       is_deleted: false
@@ -153,30 +169,30 @@ export async function getFeed(request, reply) {
   const likedSet = new Set(userLikes.map((l) => l.post_id.toString()));
   const repostedSet = new Set(userReposts.map((r) => r.original_post_id.toString()));
 
-  // 5. Format data untuk Frontend
+  // 4. Format data untuk Frontend
   const formatted = posts.map((p) => ({
     ...p,
     author: p.author_id,
     author_id: undefined,
     is_liked: likedSet.has(p._id.toString()),
     is_reposted: repostedSet.has(p._id.toString()),
-    // Tandai apakah ini postingan teman atau discovery (optional buat FE)
-    is_discovery: !followingIds.includes(p.author?._id?.toString() || p.author_id?.toString()) && p.author_id?.toString() !== userId
+    is_discovery: !followingIds.some(fid => fid.toString() === (p.author_id?._id?.toString() || p.author_id?.toString())) && (p.author_id?._id?.toString() || p.author_id?.toString()) !== userId
   }));
 
-  // Kompatibilitas mundur next_cursor
-  const nextCursor = posts.length === limit ? posts[posts.length - 1].createdAt.toISOString() : null;
-  
-  // Pagination flag 
-  // Jika page * limit < total yang ada di session, berarti masih ada more data
-  const hasMore = page > 0 ? (page * limit < totalSessionCount) : !!nextCursor;
+  // 5. Hitung has_more dan cursor (FIX: sekarang berbasis total session, bukan limit)
+  const startIndexForPage = (page - 1) * limit;
+  const hasMore = before
+    ? posts.length === limit
+    : (startIndexForPage + posts.length) < totalSessionCount;
+
+  const nextCursor = posts.length > 0 ? posts[posts.length - 1].createdAt?.toISOString() : null;
 
   const responseData = {
     success: true,
     data: {
       posts: formatted,
-      next_cursor: nextCursor, // Tetap dibalikin untuk jaga-jaga
-      current_page: page, // Beritahu front end
+      next_cursor: nextCursor,     // Tetap dikembalikan untuk kompatibilitas mundur
+      current_page: page,
       has_more: hasMore,
       count: posts.length
     },
@@ -185,11 +201,11 @@ export async function getFeed(request, reply) {
   // --- REDIS CACHE: Simpan response HTML throttle ---
   if (request.server.redis) {
     try {
-      // Sama seperti kesepakatan: Page 1 throttle 5 detik, sisanya 60 detik
+      // Page 1 throttle 5 detik biar fresh, sisanya 60 detik biar irit
       const cacheTTL = page === 1 ? 5 : 60;
       await request.server.redis.set(cacheKey, JSON.stringify(responseData), 'EX', cacheTTL);
     } catch (err) {
-      request.log.warn(`Redis SET Error: ${err.message}`);
+      request.log.warn(`[Feed] Redis SET Error: ${err.message}`);
     }
   }
   // ----------------------------------------------------
