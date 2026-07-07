@@ -50,6 +50,13 @@ const postSchema = new mongoose.Schema(
     reposts_count: { type: Number, default: 0 },
     shares_count: { type: Number, default: 0 },
 
+    // Tags (Mention) — daftar user yang di-tag di caption
+    tags_id: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: undefined,
+    }],
+
     is_deleted: { type: Boolean, default: false, index: true },
     is_edited: { type: Boolean, default: false },
   },

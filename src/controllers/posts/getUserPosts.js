@@ -12,15 +12,24 @@ export async function getUserPosts(request, reply) {
   const before = request.query.before;
 
   try {
-    const filter = {
-      author_id: targetId,
-      type: 'original', // Hanya ambil postingan asli buatan user
-      is_deleted: false
+    const baseConditions = {
+      is_deleted: false,
+      type: 'original',
     };
 
+    // Tambah filter waktu (cursor-based pagination)
     if (before) {
-      filter.createdAt = { $lt: new Date(before) };
+      baseConditions.createdAt = { $lt: new Date(before) };
     }
+
+    // Ambil postingan milik user ATAU yang dia di-tag di dalamnya
+    const filter = {
+      ...baseConditions,
+      $or: [
+        { author_id: targetId },
+        { tags_id: targetId }
+      ],
+    };
 
     // Eksekusi kueri dengan Deep Populate untuk Repost
     const posts = await Post.find(filter)

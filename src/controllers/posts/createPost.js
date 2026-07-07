@@ -1,6 +1,37 @@
 import { uploadFile } from '../../services/r2Service.js';
 import { emitNewPost } from '../../services/wsService.js';
 import Post from '../../models/Post.js';
+import User from '../../models/User.js';
+import { triggerPushNotification } from '../../services/notificationService.js';
+
+/**
+ * Mengekstrak NIM dari caption yang berisi pola mention.
+ * Mendukung dua format:
+ *  1. Format Library (Produksi FE): @[Edy Syafrianto](225520211002)
+ *  2. Format Sederhana (Testing):   @225520211002   (angka saja)
+ */
+function extractMentionedNims(caption) {
+  if (!caption) return [];
+  const nims = [];
+
+  // Format 1: @[Nama](NIM) — output dari react-native-controlled-mentions
+  const libraryRegex = /@\[[^\]]+\]\(([^)]+)\)/g;
+  let match;
+  while ((match = libraryRegex.exec(caption)) !== null) {
+    nims.push(match[1].trim());
+  }
+
+  // Format 2: @NIM (angka murni, minimal 5 digit) — untuk testing via curl/Swagger
+  // Hanya aktif jika tidak ada pola format library ditemukan
+  if (nims.length === 0) {
+    const simpleRegex = /@(\d{5,})/g;
+    while ((match = simpleRegex.exec(caption)) !== null) {
+      nims.push(match[1].trim());
+    }
+  }
+
+  return [...new Set(nims)]; // hapus duplikat
+}
 
 export async function createPost(request, reply) {
   const authorId = request.user.id;
@@ -51,12 +82,29 @@ export async function createPost(request, reply) {
     return reply.status(400).send({ success: false, message: 'Postingan tidak boleh kosong.' });
   }
 
+  // ── Ekstrak Mention dari caption (Non-Destructive) ───────────────────────
+  const mentionedNims = extractMentionedNims(caption);
+  let taggedUserIds = [];
+
+  if (mentionedNims.length > 0) {
+    try {
+      const taggedUsers = await User.find({ nim: { $in: mentionedNims } }).select('_id nim nama').lean();
+      taggedUserIds = taggedUsers
+        .filter(u => u._id.toString() !== authorId) // jangan tag diri sendiri
+        .map(u => u._id);
+    } catch (err) {
+      // Jika gagal ambil user, abaikan saja — postingan tetap tersimpan
+      request.log.warn('[Mention] Gagal mengambil data user yang di-tag:', err.message);
+    }
+  }
+
   const post = await Post.create({
     author_id: authorId,
     caption,
     media: mediaList,
     type: 'original',
-    visibility, // Simpan gembok privasi
+    visibility,
+    tags_id: taggedUserIds,
   });
 
   // Populate author untuk response & broadcast
@@ -95,6 +143,21 @@ export async function createPost(request, reply) {
       const keys = await request.server.redis.keys('feed:*');
       if (keys.length > 0) await request.server.redis.del(...keys);
     } catch (err) {}
+  }
+
+  // ── Kirim Notifikasi ke Pengguna yang Di-Tag ─────────────────────────────
+  if (taggedUserIds.length > 0) {
+    const authorName = request.user.nama || 'Seseorang';
+    for (const uid of taggedUserIds) {
+      triggerPushNotification(uid, {
+        title: 'MetaU',
+        body: `${authorName} menandai Anda dalam sebuah postingan`,
+        data: {
+          type: 'mention',
+          post_id: post._id.toString(),
+        },
+      });
+    }
   }
 
   return reply.status(201).send({
