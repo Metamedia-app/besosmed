@@ -230,7 +230,25 @@ export async function editUser(request, reply) {
 
     // Update hanya field yang dikirim
     if (nama !== undefined) user.nama = nama;
-    if (email !== undefined) user.email = email;
+    
+    if (email !== undefined) {
+      const targetEmail = email.trim();
+      if (targetEmail === "") {
+        // Hapus email (jadikan undefined) agar sparse index MongoDB mengabaikannya
+        user.email = undefined;
+      } else {
+        // Cek duplikasi email agar tidak memicu error 500 Mongodb
+        const existingEmail = await User.findOne({ email: targetEmail, _id: { $ne: id } });
+        if (existingEmail) {
+          return reply.status(400).send({
+            success: false,
+            message: `Email ${targetEmail} sudah digunakan oleh user lain.`,
+          });
+        }
+        user.email = targetEmail;
+      }
+    }
+    
     if (program_studi !== undefined) user.program_studi = program_studi;
     if (status_mahasiswa !== undefined) user.status_mahasiswa = status_mahasiswa;
     if (role !== undefined) {
