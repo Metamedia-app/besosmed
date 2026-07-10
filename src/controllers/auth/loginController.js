@@ -6,15 +6,28 @@ import User from '../../models/User.js';
  * Return JWT token jika berhasil
  */
 export async function login(request, reply) {
-  const { nim, password } = request.body;
+  const { nim, email, password } = request.body;
+  const loginIdentifier = (nim || email || '').trim();
 
-  // 1. Cari user berdasarkan NIM, sertakan password (select: false di schema)
-  const user = await User.findOne({ nim }).select('+password').lean();
+  if (!loginIdentifier || !password) {
+    return reply.status(400).send({
+      success: false,
+      message: 'NIM/Email dan password salah atau tidak diisi.',
+    });
+  }
+
+  // 1. Cari user berdasarkan NIM atau Email, sertakan password (select: false di schema)
+  const user = await User.findOne({
+    $or: [
+      { nim: loginIdentifier },
+      { email: loginIdentifier }
+    ]
+  }).select('+password').lean();
 
   if (!user) {
     return reply.status(401).send({
       success: false,
-      message: 'NIM atau password salah.',
+      message: 'NIM/Email atau password salah.',
     });
   }
 
@@ -23,7 +36,7 @@ export async function login(request, reply) {
   if (!isValid) {
     return reply.status(401).send({
       success: false,
-      message: 'NIM atau password salah.',
+      message: 'NIM/Email atau password salah.',
     });
   }
 
