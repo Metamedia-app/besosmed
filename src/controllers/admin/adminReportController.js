@@ -28,7 +28,7 @@ export async function reportPost(request, reply) {
     const admins = await User.find({ role: 'admin' }).select('_id');
     admins.forEach(admin => {
       sendToUser(admin._id, {
-        type: 'admin_notification',
+        type: 'new_report',
         data: {
           title: '🚨 Laporan Konten Baru!',
           message: `Postingan ${post.author_id?.nama || 'User'} dilaporkan.`,

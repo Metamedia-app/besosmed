@@ -77,7 +77,7 @@ export async function addComment(request, reply) {
     
     admins.forEach(admin => {
       sendToUser(admin._id, {
-        type: 'admin_notification',
+        type: 'content_flagged',
         data: {
           title: '🤬 Komentar Toxic!',
           message: `${request.user.nama} mengirim komentar kasar.`,
