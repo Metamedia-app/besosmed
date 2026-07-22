@@ -87,6 +87,17 @@ async function socketioPlugin(fastify) {
           });
       }
 
+      // Kirim daftar user yang SUDAH online ke user yang BARU connect
+      // Supaya FE tidak "buta" soal siapa yang online saat pertama kali buka app
+      const onlineRooms = io.sockets.adapter.rooms;
+      const onlineUserIds = [];
+      onlineRooms.forEach((_, roomName) => {
+        if (roomName.startsWith('user:')) {
+          onlineUserIds.push(roomName.replace('user:', ''));
+        }
+      });
+      socket.emit('initial_online_users', { userIds: onlineUserIds });
+
       // Broadcast status online ke semua user (Indikator Realtime)
       io.emit('user_status_change', {
         userId: userId.toString(),
