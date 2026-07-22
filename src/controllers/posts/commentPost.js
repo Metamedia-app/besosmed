@@ -15,9 +15,9 @@ export async function addComment(request, reply) {
 
   // Validasi format ID jika parent_id diisi
   if (parent_id && !mongoose.Types.ObjectId.isValid(parent_id)) {
-    return reply.status(400).send({ 
-      success: false, 
-      message: 'Format parent_id tidak valid.' 
+    return reply.status(400).send({
+      success: false,
+      message: 'Format parent_id tidak valid.'
     });
   }
 
@@ -62,7 +62,7 @@ export async function addComment(request, reply) {
   // 0. --- ALARM TOXIC UNTUK ADMIN (WEB DASHBOARD) ---
   if (containsToxicWords(body)) {
     console.warn(`🚨 TOXIC_DETECTED: User ${request.user.nama} mengirim kata kasar: "${body}"`);
-    
+
     // Auto-Save ke Tabel Laporan agar Admin bisa cek nanti di /admin/reports
     await Report.create({
       reporter_id: userId, // User yang berbuat toxic dilaporkan oleh sistem
@@ -74,7 +74,7 @@ export async function addComment(request, reply) {
     // Cari semua admin
     const admins = await User.find({ role: 'admin' }).select('_id');
     const adminUnreadCount = await Report.countDocuments({ status: 'pending' });
-    
+
     admins.forEach(admin => {
       sendToUser(admin._id, {
         type: 'content_flagged',
@@ -112,7 +112,7 @@ export async function addComment(request, reply) {
 
     // Kirim Push Notification via FCM
     triggerPushNotification(userId, {
-      title: 'BeSosmed',
+      title: 'Peringatan🚨',
       body: 'Komentar Anda melanggar pedoman komunitas.',
       data: {
         type: 'toxic',
@@ -170,7 +170,7 @@ export async function addComment(request, reply) {
         {
           $set: { sender_id: userId },
           $inc: { others_count: 1 },
-          $push: { 
+          $push: {
             grouped_items: {
               $each: [{
                 user_id: userId,
@@ -207,7 +207,7 @@ export async function addComment(request, reply) {
 
       // Format pesan real-time
       const count = notif.others_count || 0;
-      const message = count > 0 
+      const message = count > 0
         ? `${request.user.nama} dan ${count} lainnya membalas komentarmu.`
         : `${request.user.nama} membalas komentarmu.`;
 
@@ -249,7 +249,7 @@ export async function addComment(request, reply) {
         {
           $set: { sender_id: userId },
           $inc: { others_count: 1 },
-          $push: { 
+          $push: {
             grouped_items: {
               $each: [{
                 user_id: userId,
@@ -286,7 +286,7 @@ export async function addComment(request, reply) {
 
       // Format pesan real-time
       const count = notif.others_count || 0;
-      const message = count > 0 
+      const message = count > 0
         ? `${request.user.nama} dan ${count} lainnya mengomentari postinganmu.`
         : `${request.user.nama} mengomentari postinganmu.`;
 
@@ -372,10 +372,10 @@ export async function getCommentTree(request, reply) {
   const { id: postId, commentId } = request.params;
 
   // Pastikan Root Komentarnya ada
-  const rootComment = await Comment.findOne({ 
-    _id: commentId, 
-    post_id: postId, 
-    is_deleted: false 
+  const rootComment = await Comment.findOne({
+    _id: commentId,
+    post_id: postId,
+    is_deleted: false
   }).populate('author_id', 'nim nama avatar_url').lean();
 
   if (!rootComment) {
@@ -424,7 +424,7 @@ export async function deleteComment(request, reply) {
   try {
     // 1. Cari komentar
     const comment = await Comment.findOne({ _id: commentId, post_id: postId, is_deleted: false });
-    
+
     if (!comment) {
       return reply.status(404).send({ success: false, message: 'Komentar tidak ditemukan.' });
     }
@@ -439,7 +439,7 @@ export async function deleteComment(request, reply) {
     await comment.save();
 
     // 4. --- UPDATE STATISTIK (DIBALIKKAN DARI LOGIC ADD) ---
-    
+
     // Kurangi total komentar di postingan
     await Post.updateOne({ _id: postId }, { $inc: { comments_count: -1 } });
 
@@ -453,9 +453,9 @@ export async function deleteComment(request, reply) {
 
     // 5. Broadcast ke Socket.io (Opsional tapi bagus buat UX)
     // Mas bisa buat fungsi emitDeleteComment di wsService nanti kalau mau real-time
-    
-    return reply.send({ 
-      success: true, 
+
+    return reply.send({
+      success: true,
       message: 'Komentar berhasil dihapus.',
       data: { comment_id: commentId, post_id: postId }
     });
