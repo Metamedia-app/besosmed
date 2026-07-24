@@ -390,7 +390,7 @@ export async function sendCommunityMessage(request, reply) {
       }
     });
   } catch (error) {
-    if (error.code === 'FST_ERR_FILE_TOO_LARGE') {
+    if (error.statusCode === 413) {
       throw error;
     }
     request.log.error(error);

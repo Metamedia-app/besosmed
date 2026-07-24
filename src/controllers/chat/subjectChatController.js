@@ -353,7 +353,7 @@ if (containsToxicWords(body)) {
     return reply.status(201).send({ success: true, data: formattedMessage });
 
   } catch (error) {
-    if (error.code === 'FST_ERR_FILE_TOO_LARGE') {
+    if (error.statusCode === 413) {
       throw error;
     }
     request.log.error(error);

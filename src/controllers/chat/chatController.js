@@ -296,7 +296,7 @@ export async function sendMessage(request, reply) {
     });
 
   } catch (error) {
-    if (error.code === 'FST_ERR_FILE_TOO_LARGE') {
+    if (error.statusCode === 413) {
       throw error;
     }
     console.error('CHAT_ERROR_DETAIL:', error);
