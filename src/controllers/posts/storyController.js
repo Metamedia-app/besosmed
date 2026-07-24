@@ -13,13 +13,13 @@ export async function createStory(request, reply) {
 
   let content = '';
   let media = null;
-  const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
   for await (const part of parts) {
     if (part.type === 'field' && part.fieldname === 'content') {
       content = part.value?.trim() || '';
     } else if (part.type === 'file') {
-      // 1. Validasi Ukuran File (50MB)
+      // 1. Validasi Ukuran File (10MB)
       const chunks = [];
       let totalSize = 0;
 
@@ -30,7 +30,7 @@ export async function createStory(request, reply) {
           part.file.resume();
           return reply.status(400).send({ 
             success: false, 
-            message: 'Ukuran file terlalu besar. Maksimal 50 MB.' 
+            message: 'Ukuran file terlalu besar. Maksimal 10 MB.' 
           });
         }
         chunks.push(chunk);

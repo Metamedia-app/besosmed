@@ -95,6 +95,14 @@ export async function buildApp(opts = {}) {
   app.setErrorHandler((error, request, reply) => {
     app.log.error(error);
 
+    // Tangkap error jika ukuran file melebihi batas (berlaku untuk semua upload chat/post/story)
+    if (error.code === 'FST_ERR_FILE_TOO_LARGE') {
+      return reply.status(413).send({
+        success: false,
+        message: 'Batas upload media max 10 mb'
+      });
+    }
+
     const statusCode = error.statusCode || 500;
     reply.status(statusCode).send({
       success: false,
