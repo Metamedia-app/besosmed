@@ -296,6 +296,9 @@ export async function sendMessage(request, reply) {
     });
 
   } catch (error) {
+    if (error.code === 'FST_ERR_FILE_TOO_LARGE') {
+      throw error;
+    }
     console.error('CHAT_ERROR_DETAIL:', error);
     request.log.error(error);
     return reply.status(500).send({ success: false, message: 'Gagal mengirim pesan.', error: error.message });
